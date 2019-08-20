@@ -1,0 +1,35 @@
+{
+	"manifest_version" : 2,
+	"name": "Avotterrer",
+	"version": "0.1.0",
+	"author": "avotoko",
+	"description": "Extension that makes bookmarklet Avotter executable in firefox",
+
+	"icons": {
+		"48": "icons/button-48-on.png"
+	},
+
+	"permissions" : [
+		"webRequest",
+		"webRequestBlocking",
+		"*://twitter.com/*",
+		"*://mobile.twitter.com/*"
+	],
+
+	"background" : {
+		"scripts" : ["background.js"]
+	},
+
+	"browser_action" : {
+		"default_title" : "Avotterrer",
+		"default_icon"  : {
+			"48" : "icons/button-48-on.png"
+		}
+	},
+
+	"applications": {
+		"gecko": {
+			"id": "avotterrer@avotoko"
+		}
+	}
+}
