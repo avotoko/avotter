@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.3.4
+	version: 0.3.5
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -145,6 +145,7 @@
 	var jpMessageTable = {
 		"hidePromotion": "プロモーションを非表示",
 		"hideRecommendedUser": "おすすめユーザーを非表示",
+		"fitImageToArea": "画像を枠内に収める",
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
 		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフィールと固ツイを非表示",
@@ -312,7 +313,7 @@
 			if (typeof oldVal === "boolean"){
 				v = e.checked;
 				if (oldVal !== v){
-					if (/^hide/.test(k))
+					if (/^(hidePromo|hideRecom|fitImage)/.test(k))
 						needToScan = true;
 				}
 			}
@@ -331,7 +332,6 @@
 		if (! page.modal && page.type === "tweet"){
 			if (needToScan)
 				setTimeout(scanTweets, 0);
-			setTimeout(monitorPromotion, 0, avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser);
 			if (avotter.settings.addFetchAndMonitorButton){
 				if (! prev.addFetchAndMonitorButton)
 					addFetchAndMonitorButtonToPage();
@@ -384,7 +384,7 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.4 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.5 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (isMobile())
 			menu.classList.add("avtr-mobile");
@@ -528,10 +528,32 @@
 	//===============================================================
 	//  moniter tweets
 	//===============================================================
-	let monitorPromotion, scanTweets;
+	let monitorTweet, scanTweets;
 	
 	(function(){
-		let monitoring;
+		function fitImageToArea(tw, restore)
+		{
+			log("# "+(restore ? "restor":"fit")+"ing image in "+t2str(tw,50));
+			let ee = tw.querySelectorAll('div[style*="margin"] > div[style*="background-image"] + img[src*="twimg.com/media/"]');
+			for (let i = 0 ; i < ee.length ; i++){
+				e = ee[i].parentElement;
+				if (! restore){
+					if (! e.avotterStyle){
+						e.avotterStyle = e.getAttribute("style");
+						e.setAttribute("style", "margin:;"); // set dummy for above querySelectorAll
+						e.firstElementChild.style.backgroundSize = "contain";
+					}
+				}
+				else {
+					if (e.avotterStyle){
+						e.setAttribute("style", e.avotterStyle);
+						delete e.avotterStyle;
+						e.firstElementChild.style.backgroundSize = "";
+					}
+				}
+			}
+		}
+		
 		function isHeading(e)
 		{
 			return e.querySelector('h2[aria-level="2"][role="heading"]') != null;
@@ -607,10 +629,14 @@
 			if (this.avotterMoniteringTweet){
 				if (avotter.verbose)
 					console.log("insert " + t2str(e,40) + " before ["+indexof(e2)+"] "+t2str(e2,40));
-				let prev = e2.previousElementSibling;
-				if (prev && isHeading(prev))
-					hideIfNeed(prev, prev.previousElementSibling, e);
-				hideIfNeed(e, prev, e2);
+				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser){
+					let prev = e2.previousElementSibling;
+					if (prev && isHeading(prev))
+						hideIfNeed(prev, prev.previousElementSibling, e);
+					hideIfNeed(e, prev, e2);
+				}
+				if (avotter.settings.fitImageToArea)
+					setTimeout(fitImageToArea, 500, e);
 			}
 		}
 		
@@ -620,10 +646,14 @@
 				if (avotter.verbose){
 					console.log("append " + t2str(e,40) + " after ["+indexof(this.lastElementChild)+"] "+t2str(this.lastElementChild,40));
 				}
-				let prev = this.lastElementChild;
-				if (prev && isHeading(prev))
-					hideIfNeed(prev, prev.previousElementSibling, e);
-				hideIfNeed(e, prev, null);
+				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser){
+					let prev = this.lastElementChild;
+					if (prev && isHeading(prev))
+						hideIfNeed(prev, prev.previousElementSibling, e);
+					hideIfNeed(e, prev, null);
+				}
+				if (avotter.settings.fitImageToArea)
+					setTimeout(fitImageToArea, 500, e);
 			}
 		}
 		
@@ -643,16 +673,17 @@
 				for (let i = tweetsContainer.children.length - 1 ; i >= 0 ; i--){
 					let e = tweetsContainer.children[i];
 					hideOrShow(e, e.previousElementSibling, e.nextElementSibling);
+					fitImageToArea(e, ! avotter.settings.fitImageToArea);
 				}
 			}
 		}
 		
-		monitorPromotion = function(enable){
+		monitorTweet = function(enable){
 			let tweetsContainer = getTweetsContainer();
 			if (tweetsContainer){
 				if (enable){
 					if (! tweetsContainer.avotterMoniteringTweet){
-						log("# monitorPromotion started");
+						log("# monitorTweet started");
 						if (! tweetsContainer.avotterHookedTweet){
 							moniterObjectMethod(tweetsContainer, "insertBefore", onInsertBefore);
 							moniterObjectMethod(tweetsContainer, "appendChild", onAppendChild);
@@ -666,13 +697,13 @@
 				else {
 					if (tweetsContainer.avotterMoniteringTweet){
 						tweetsContainer.avotterMoniteringTweet = false;
-						log("# monitorPromotion stopped");
+						log("# monitorTweet stopped");
 					}
 				}
 			}
 			else {
 				if (currentPage().type === "tweet")
-					log("#### monitorPromotion() error: getTweetsContainer() failed");
+					log("#### monitorTweet() error: getTweetsContainer() failed");
 			}
 		};
 	})();
@@ -1326,7 +1357,7 @@
 		else {
 			if (page.type === "tweet"){
 				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser)
-					monitorPromotion(true);
+					monitorTweet(true);
 				if (avotter.settings.addFetchAndMonitorButton){
 					addFetchAndMonitorButtonToPage();
 					if (page.monitoring)
@@ -1341,20 +1372,22 @@
 	function onPageTrasition(method, state, title, url)
 	{
 		log("## " + method + " state:"+state2str(state)+" title:"+title+" url:"+url);
-		if (state.state && state.state.searchFocused != null){
-			if (url === currentPage().url){
-				log("# url not changed. only searchFocused state changed");
-				return;
-			}
-			else {
-				if (method === "replaceState"){
-					method = "pushState";
-					log("# corrected from replaceState to pushState in searchFocused mode");
+		if (state){ // transition by twitter app. when browser go/back button is used state is null.
+			if (state.state && state.state.searchFocused != null){
+				if (url === currentPage().url){
+					log("# url not changed. only searchFocused state changed");
+					return;
+				}
+				else {
+					if (method === "replaceState"){
+						method = "pushState";
+						log("# corrected from replaceState to pushState in searchFocused mode");
+					}
 				}
 			}
 		}
 		let prev = currentPage(), modalDialogClosed;
-		monitorPromotion(false);
+		monitorTweet(false);
 		let prev_monitoring = prev.monitoring;
 		fetchAndMonitorNewTweet(false);
 		prev.monitoring = prev_monitoring;
@@ -1365,14 +1398,16 @@
 			url: url
 		};
 		if (method === "pushState"){
-			if (prev.modal != null && page.state.state && page.state.state.previousPath === prev.url)
-				page.modal = prev.modal;
-			if (isNonModalUrl(url))
-				page.modal = false;
-			if (isNavItem(page.url)){
-				avotter.page = [];
+			if (page.state){
+				if (prev.modal != null && page.state.state && page.state.state.previousPath === prev.url)
+					page.modal = prev.modal;
+				if (isNonModalUrl(url))
+					page.modal = false;
+				if (isNavItem(page.url)){
+					avotter.page = [];
+				}
+				avotter.pageIndex = avotter.page.push(page) - 1;
 			}
-			avotter.pageIndex = avotter.page.push(page) - 1;
 		}
 		else if (method === "replaceState"){
 			if (avotter.page[avotter.pageIndex].modal != null)
@@ -1382,6 +1417,8 @@
 		else { // if (method === "popstate")
 			let found;
 			for (let i = avotter.page.length - 1 ; i >= 0 ; i--){
+				if (! avotter.page[i].state || ! page.state)
+					continue;
 				if (avotter.page[i].state.key && avotter.page[i].state.key === page.state.key){
 					found = true;
 					if (prev.modal && avotter.page[i].type === "tweet")
@@ -1708,6 +1745,7 @@
 			settings: {
 				hidePromotion: false,
 				hideRecommendedUser: false,
+				fitImageToArea: false,
 				addFetchAndMonitorButton: false,
 				fetchAfterStayFor: defaultFetchAfterStayFor,
 				hideProfileAndPinnedTweetWhenMonitoring: false,
