@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.3.5
+	version: 0.3.6
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -154,8 +154,9 @@
 		"forceWorkingInBackground": "バックグラウンドでも通知等を取得させる",
 		"addHomeButton": "戻るボタンの横にホームボタンを表示",
 		"addGoTopButton": "文書先頭に行くボタンを表示",
+		"goTopButtonAtMousePosition": "┗上記ボタンをマウス位置に表示",
 		"closeModalDialogByDoubleClick": "ポップアップをダブルクリックで閉じる",
-		"storeSettingsInBrowser": "設定を保存する",
+		"storeSettingsInBrowser": "上記設定をブラウザに保存する",
 		"Apply": "適用",
 		"Close": "閉じる",
 		"ApplyAndClose": "適用して閉じる",
@@ -352,17 +353,34 @@
 				removeHomeButtonFromPage();
 			}
 		}
-		if (avotter.settings.addGoTopButton != prev.addGoTopButton){
+		if (avotter.settings.addGoTopButton !== prev.addGoTopButton){
 			if (avotter.settings.addGoTopButton){
 				window.addEventListener("scroll", onScrollForGoTopButton);
+				if (! isMobile() && avotter.settings.goTopButtonAtMousePosition)
+					d.addEventListener("mousemove", onMouseMoveForGoTopButton);
 				onScrollForGoTopButton();
 			}
 			else {
 				window.removeEventListener("scroll", onScrollForGoTopButton);
+				if (! isMobile())
+					d.removeEventListener("mousemove", onMouseMoveForGoTopButton);
 				onScrollForGoTopButton();
 				hideGoTopButton();
 			}
 		}
+		if (! isMobile()){
+			if (avotter.settings.goTopButtonAtMousePosition !== prev.goTopButtonAtMousePosition){
+				if (avotter.settings.goTopButtonAtMousePosition){
+					if (avotter.settings.addGoTopButton)
+						d.addEventListener("mousemove", onMouseMoveForGoTopButton);
+				}
+				else {
+					d.removeEventListener("mousemove", onMouseMoveForGoTopButton);
+				}
+			}
+			onScrollForGoTopButton();
+		}
+		
 		onAvotterSettingsClose();
 	}
 
@@ -384,7 +402,7 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.5 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.6 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (isMobile())
 			menu.classList.add("avtr-mobile");
@@ -392,6 +410,8 @@
 			let v = avotter.settings[k];
 			if (isMobile()){
 				if (k === "closeModalDialogByDoubleClick")
+					return;
+				if (k === "goTopButtonAtMousePosition")
 					return;
 			}
 			else {
@@ -531,6 +551,8 @@
 	let monitorTweet, scanTweets;
 	
 	(function(){
+		let delayForFitImage = 100;
+		
 		function fitImageToArea(tw, restore)
 		{
 			log("# "+(restore ? "restor":"fit")+"ing image in "+t2str(tw,50));
@@ -636,7 +658,7 @@
 					hideIfNeed(e, prev, e2);
 				}
 				if (avotter.settings.fitImageToArea)
-					setTimeout(fitImageToArea, 500, e);
+					setTimeout(fitImageToArea, delayForFitImage, e);
 			}
 		}
 		
@@ -653,7 +675,7 @@
 					hideIfNeed(e, prev, null);
 				}
 				if (avotter.settings.fitImageToArea)
-					setTimeout(fitImageToArea, 500, e);
+					setTimeout(fitImageToArea, delayForFitImage, e);
 			}
 		}
 		
@@ -1694,6 +1716,13 @@
 			e.addEventListener("click",()=>scrollTo(0,0));
 			document.body.appendChild(e);
 		}
+		if (! isMobile() && avotter.settings.goTopButtonAtMousePosition){
+			e.style.top = avotter.mouseTop - 10 + "px";
+			e.style.left = avotter.mouseLeft - 10 + "px";
+		}
+		else {
+			e.style.top = e.style.left = "";
+		}
 		e.style.display = "block";
 	}
 
@@ -1707,12 +1736,18 @@
 	function onScrollForGoTopButton()
 	{
 		if (! goTopTimer){
-			if (pageYOffset > innerHeight)
+			if (window.pageYOffset > window.innerHeight)
 				showGoTopButton();
 			else
 				hideGoTopButton();
 			goTopTimer = setTimeout(()=>{goTopTimer=null}, 500);
 		}
+	}
+	
+	function onMouseMoveForGoTopButton()
+	{
+		avotter.mouseLeft = event.pageX - window.pageXOffset;
+		avotter.mouseTop = event.pageY - window.pageYOffset;
 	}
 	
 	//===============================================================
@@ -1743,17 +1778,18 @@
 			page: [],
 			hiddenPromotionCount: 0,
 			settings: {
-				hidePromotion: false,
-				hideRecommendedUser: false,
-				fitImageToArea: false,
-				addFetchAndMonitorButton: false,
+				hidePromotion: true,
+				hideRecommendedUser: true,
+				fitImageToArea: true,
+				addFetchAndMonitorButton: true,
 				fetchAfterStayFor: defaultFetchAfterStayFor,
-				hideProfileAndPinnedTweetWhenMonitoring: false,
-				showArrivalOfNewTweetsInTab: false,
+				hideProfileAndPinnedTweetWhenMonitoring: true,
+				showArrivalOfNewTweetsInTab: true,
 				emojiForNotification: defaultEmojiForNotification.join(","),
-				addHomeButton: false,
-				addGoTopButton: false,
-				closeModalDialogByDoubleClick: false,
+				addHomeButton: true,
+				addGoTopButton: true,
+				goTopButtonAtMousePosition: true,
+				closeModalDialogByDoubleClick: true,
 				forceWorkingInBackground: false,
 				storeSettingsInBrowser: false
 			},
@@ -1816,10 +1852,13 @@
 		//
 		hookVisibilityState();
 		
-		if (avotter.settings.addGoTopButton)
+		if (avotter.settings.addGoTopButton){
 			window.addEventListener("scroll", onScrollForGoTopButton);
+			if (! isMobile() && avotter.settings.goTopButtonAtMousePosition)
+				d.addEventListener("mousemove", onMouseMoveForGoTopButton);
+		}
 		
-		avotter.debug = true;
+		//avotter.debug = true;
 		
 		if (page.modal || page.type)
 			onTransitionComplete();
