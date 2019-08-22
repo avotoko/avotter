@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.3.3
+	version: 0.3.4
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -147,10 +147,12 @@
 		"hideRecommendedUser": "おすすめユーザーを非表示",
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
+		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフィールと固ツイを非表示",
 		"showArrivalOfNewTweetsInTab": "監視中新着数/TL新着有無/通知数/DM数をタブに表示する",
 		"emojiForNotification": "┗上記表示用絵文字（監視中新着,TL新着,通知,DM）",
 		"forceWorkingInBackground": "バックグラウンドでも通知等を取得させる",
 		"addHomeButton": "戻るボタンの横にホームボタンを表示",
+		"addGoTopButton": "文書先頭に行くボタンを表示",
 		"closeModalDialogByDoubleClick": "ポップアップをダブルクリックで閉じる",
 		"storeSettingsInBrowser": "設定を保存する",
 		"Apply": "適用",
@@ -178,6 +180,19 @@
 			return s;
 	}
 	
+	//===============================================================
+	// avtr
+	//===============================================================
+	function avtrHide(e)
+	{
+		e.classList.add("avtr-hide");
+	}
+
+	function avtrShow(e)
+	{
+		e.classList.remove("avtr-hide");
+	}
+
 	//===============================================================
 	// Dialog
 	//===============================================================
@@ -337,6 +352,17 @@
 				removeHomeButtonFromPage();
 			}
 		}
+		if (avotter.settings.addGoTopButton != prev.addGoTopButton){
+			if (avotter.settings.addGoTopButton){
+				window.addEventListener("scroll", onScrollForGoTopButton);
+				onScrollForGoTopButton();
+			}
+			else {
+				window.removeEventListener("scroll", onScrollForGoTopButton);
+				onScrollForGoTopButton();
+				hideGoTopButton();
+			}
+		}
 		onAvotterSettingsClose();
 	}
 
@@ -358,7 +384,7 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.3 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.4 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (isMobile())
 			menu.classList.add("avtr-mobile");
@@ -452,10 +478,10 @@
 		if (b && (e = b.querySelector('span'))){
 			if (count > 0){
 				e.innerText = count;
-				e.classList.remove('avtr-hide')
+				avtrShow(e);
 			}
 			else {
-				e.classList.add('avtr-hide')
+				avtrHide(e);
 				e.innerText = "";
 			}
 		}
@@ -506,16 +532,6 @@
 	
 	(function(){
 		let monitoring;
-		function hide(e)
-		{
-			e.classList.add("avtr-hide");
-		}
-
-		function show(e)
-		{
-			e.classList.remove("avtr-hide");
-		}
-
 		function isHeading(e)
 		{
 			return e.querySelector('h2[aria-level="2"][role="heading"]') != null;
@@ -556,7 +572,7 @@
 		{
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
-				hide(e);
+				avtrHide(e);
 				if (r.promotion)
 					notifyInButton(++avotter.hiddenPromotionCount);
 			}
@@ -566,12 +582,12 @@
 		{
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
-				hide(e);
+				avtrHide(e);
 				if (r.promotion)
 					notifyInButton(++avotter.hiddenPromotionCount);
 			}
 			else
-				show(e);
+				avtrShow(e);
 		}
 		
 		function indexof(e)
@@ -974,6 +990,16 @@
 			}
 			//let e = d.querySelector(".avtr-svg-eye");
 			//if (e) e.style.fill = "black";
+			e = d.querySelector('a[href$="/header_photo"]');
+			if (e && (e = e.parentElement) && isHidden(e)){
+				avtrShow(e);
+				tweetsForEach(tw=>{
+					if (tw.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]')){
+						avtrShow(tw);
+						return true;  // stop enumeration
+					}
+				});
+			}
 			lastReadTweet = tweetsContainer = null;
 			currentPage().monitoring = monitoring = false;
 			log("# fetchAndMonitorNewTweet stopped");
@@ -1014,6 +1040,18 @@
 			let e = d.querySelector(".avtr-eye-button");
 			if (e)
 				e.classList.add("avtr-eye-monitoring");
+			if (avotter.settings.hideProfileAndPinnedTweetWhenMonitoring){
+				e = d.querySelector('a[href$="/header_photo"]');
+				if (e && (e = e.parentElement)){
+					avtrHide(e);
+					tweetsForEach(tw=>{
+						if (tw.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]')){
+							avtrHide(tw);
+							return true;  // stop enumeration
+						}
+					});
+				}
+			}
 			currentPage().monitoring = monitoring = true;
 			onScroll();
 		}
@@ -1032,7 +1070,7 @@
 		{
 			let count = 0;
 			if (monitoring){
-				tweetsForEach(e=>(isVisible(e) && ! e.classList.contains("avtr-already-read")) ? ++count : 0);
+				tweetsForEach(e=>{isVisible(e) && ! e.classList.contains("avtr-already-read") && ++count});
 			}
 			return count;
 		};
@@ -1064,7 +1102,8 @@
 		let tweetsContainer = getTweetsContainer();
 		if (tweetsContainer){
 			for (let i = 0 ; i < tweetsContainer.children.length ; i++){
-				callback(tweetsContainer.children[i]);
+				if (callback(tweetsContainer.children[i]))
+					break;
 			}
 		}
 	}
@@ -1279,6 +1318,7 @@
 			removeHomeButtonFromPage();
 		}
 		if (page.modal){
+			hideGoTopButton();
 			if (! isMobile() && avotter.settings.closeModalDialogByDoubleClick){
 				installModalDialogHandler();
 			}
@@ -1307,7 +1347,10 @@
 				return;
 			}
 			else {
-				method = "pushState";
+				if (method === "replaceState"){
+					method = "pushState";
+					log("# corrected from replaceState to pushState in searchFocused mode");
+				}
 			}
 		}
 		let prev = currentPage(), modalDialogClosed;
@@ -1600,6 +1643,42 @@
 	}
 	
 	//===============================================================
+	//  go top button
+	//===============================================================
+	var goTopTimer;
+	
+	function showGoTopButton()
+	{
+		let e = d.querySelector('.avtr-gotop-button');
+		if (! e){
+			e = d.createElement("div");
+			e.innerHTML = '<svg viewBox="0 0 48 48" class="avtr-svg-gotop"><g><path d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817"/></g></svg>';
+			e.className = "avtr-gotop-button";
+			e.addEventListener("click",()=>scrollTo(0,0));
+			document.body.appendChild(e);
+		}
+		e.style.display = "block";
+	}
+
+	function hideGoTopButton()
+	{
+		let e = d.querySelector('.avtr-gotop-button');
+		if (e)
+			e.style.display = "none";
+	}
+	
+	function onScrollForGoTopButton()
+	{
+		if (! goTopTimer){
+			if (pageYOffset > innerHeight)
+				showGoTopButton();
+			else
+				hideGoTopButton();
+			goTopTimer = setTimeout(()=>{goTopTimer=null}, 500);
+		}
+	}
+	
+	//===============================================================
 	//  
 	//===============================================================
 	function hookVisibilityState()
@@ -1631,9 +1710,11 @@
 				hideRecommendedUser: false,
 				addFetchAndMonitorButton: false,
 				fetchAfterStayFor: defaultFetchAfterStayFor,
+				hideProfileAndPinnedTweetWhenMonitoring: false,
 				showArrivalOfNewTweetsInTab: false,
 				emojiForNotification: defaultEmojiForNotification.join(","),
 				addHomeButton: false,
+				addGoTopButton: false,
 				closeModalDialogByDoubleClick: false,
 				forceWorkingInBackground: false,
 				storeSettingsInBrowser: false
@@ -1648,7 +1729,7 @@
 		
 		appendStylesheet(
 			'.avtr-hide{display:none}'
-			+'.avtr-main-button{position:relative;cursor:pointer;padding:0.2rem 0.3rem 0 0.3rem;border:1px solid;border-radius:50%;background-color:gold}.avtr-main-button.avtr-mobile{height:50%;margin:3% 4%}'
+			+'.avtr-main-button{position:relative;cursor:pointer;padding:0.2rem 0.3rem 0 0.3rem;border:1px solid;border-radius:50%;background-color:gold;'+(!isMobile()?'margin-top:0.5rem':'')+'}.avtr-main-button.avtr-mobile{height:50%;margin:3% 4%}'
 			+'.avtr-svg-av{width:1.2rem}'
 			+'.avtr-sup{position:absolute;right:-15px;top:-12px;min-width:16px;padding:3px;text-align:center;border-radius:50%;background-color:blue;color:white;font:small-caps bold 12px sans-serif}'
 			+'@keyframes blink{0%{opacity:0.5}50%{opacity:1}}.avtr-blink{animation:blink 1s step-end infinite}'
@@ -1658,6 +1739,7 @@
 			+'.avtr-already-read{background-color:#f0f0f0}'
 			+'.avtr-home-button{margin:auto 5px auto -5px;height:1.75rem;color:gold;fill:currentcolor}'
 			+'.avtr-eye-button{position:relative;cursor:pointer;width:2rem;padding:0.3rem 0 0 0.3rem;fill:gold}.avtr-svg-eye{height:1.8rem}.avtr-eye-monitoring{background-color:black}.avtr-eye-new-arrivals{position:absolute;width:1.5rem;top:-0.2rem;right:-1rem;text-align:center;border-radius:50%;color:red;background-color:red;color:white;font:small-caps bold 1rem sans-serif}.avtr-eye-countdown{position:absolute;width:1.4rem;top:0.6rem;left:0.3rem;text-align:center;border-radius:50%;color:red;background-color:gold;font:small-caps bold 0.9rem sans-serif}'
+			+'.avtr-gotop-button{position:relative;width:2.2rem;height:2.2rem;background-color:gold;cursor:pointer;padding:3px 0 0 4px;border-radius:50%;position:fixed;bottom:1rem;left:1rem;z-index:3;}.avtr-svg-gotop{width:1.8rem}'
 		);
 
 		// add avotter settings button
@@ -1695,6 +1777,9 @@
 		
 		//
 		hookVisibilityState();
+		
+		if (avotter.settings.addGoTopButton)
+			window.addEventListener("scroll", onScrollForGoTopButton);
 		
 		avotter.debug = true;
 		
