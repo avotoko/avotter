@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.3.6
+	version: 0.3.10
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -402,8 +402,10 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.6 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.10 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
+		if (window.chrome)
+			menu.style.font = "message-box";
 		if (isMobile())
 			menu.classList.add("avtr-mobile");
 		Object.keys(avotter.settings).forEach(function(k){
@@ -458,10 +460,16 @@
 	{
 		let e = d.querySelector('.avtr-main-button');
 		if (! e){
-			let parent = d.querySelector('nav');
-			if (! isMobile()){
-				//parent = parent.parentElement.parentElement;
+			e = d.querySelector('path[d^="M22.58 7.35L12.475 1.897c-.297-.16-.654-.16-.95 0L1.425 7.35c-."]');
+			if (! e)
+				e = d.querySelector('path[d^="M22.46 7.57L12.357 2.115c-.223-.12-.49-.12-.713 0L1.543 7.57c-."]');
+			if (e){
+				while (e = e.parentElement){
+					if (e.tagName === "NAV")
+						break;
+				}
 			}
+			let parent = e;
 			if (parent){
 				e = d.createElement("div");
 				e.className = "avtr-main-button", e.innerHTML = '<svg viewBox="0 0 48 48" class="avtr-svg-av"><g><path d="M17.873171210289,5.307317063212395l-15.141463428735733,37.61951223015785l7.88292683660984,-0.07804878056049347l3.980487808585167,-10.536585375666618l11.9414634257555,0l-1.4048780500888824,-5.0731707364320755l-8.741463422775269,0.3121951222419739l5.541463419795036,-13.03414635360241l8.11707317829132,27.629268318414688l7.88292683660984,-0.07804878056049347l8.273170739412308,-22.165853679180145l-6.556097567081451,0.07804878056049347l-5.0731707364320755,13.26829269528389l-8.429268300533295,-28.253658562898636l-8.11707317829132,-0.15609756112098694l-0.15609756112098694,0.4682926833629608"/></g></svg><span class="avtr-sup avtr-hide">25</span>';
@@ -555,7 +563,6 @@
 		
 		function fitImageToArea(tw, restore)
 		{
-			log("# "+(restore ? "restor":"fit")+"ing image in "+t2str(tw,50));
 			let ee = tw.querySelectorAll('div[style*="margin"] > div[style*="background-image"] + img[src*="twimg.com/media/"]');
 			for (let i = 0 ; i < ee.length ; i++){
 				e = ee[i].parentElement;
@@ -617,8 +624,7 @@
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
 				avtrHide(e);
-				if (r.promotion)
-					notifyInButton(++avotter.hiddenPromotionCount);
+				notifyInButton(++avotter.hiddenItemCount);
 			}
 		}
 		
@@ -627,8 +633,7 @@
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
 				avtrHide(e);
-				if (r.promotion)
-					notifyInButton(++avotter.hiddenPromotionCount);
+				notifyInButton(++avotter.hiddenItemCount);
 			}
 			else
 				avtrShow(e);
@@ -646,6 +651,15 @@
 			return i;
 		}
 		
+		function dispatchTweetToAddon(e, state)
+		{
+			Object.keys(avotter.addon).forEach(k=>{
+				let addon = avotter.addon[k];
+				if (typeof addon.onTweet === "function")
+					addon.onTweet(e, state)
+			});
+		}
+		
 		function onInsertBefore(e, e2)
 		{
 			if (this.avotterMoniteringTweet){
@@ -660,6 +674,7 @@
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
 			}
+			dispatchTweetToAddon(e, {/*for future extension*/});
 		}
 		
 		function onAppendChild(e)
@@ -677,6 +692,7 @@
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
 			}
+			dispatchTweetToAddon(e, {/*for future extension*/});
 		}
 		
 		function onRemoveChild(e)
@@ -696,6 +712,7 @@
 					let e = tweetsContainer.children[i];
 					hideOrShow(e, e.previousElementSibling, e.nextElementSibling);
 					fitImageToArea(e, ! avotter.settings.fitImageToArea);
+					dispatchTweetToAddon(e, {/*for future extension*/});
 				}
 			}
 		}
@@ -1005,9 +1022,15 @@
 							if (isHidden(e) && i > 30)
 								e.style.display = "block";
 						}
-						if (tweetsContainer.firstElementChild !== lastReadTweet){
-							if (lastReadTweet = tweetsContainer.firstElementChild){
-								log("lastReadTweet: " + t2str(lastReadTweet));
+						let firstTweet = tweetsContainer.firstElementChild;
+						if (isPinnedTweet(firstTweet)){
+							firstTweet = firstTweet.nextElementSibling;
+							if (isSeparator(firstTweet))
+								firstTweet = firstTweet.nextElementSibling;
+						}
+						if (firstTweet !== lastReadTweet){
+							if (lastReadTweet = firstTweet){
+								log("lastReadTweet: " + t2str(lastReadTweet,50));
 							}
 						}
 						printTweetsIfDebug();
@@ -1041,17 +1064,13 @@
 				e.querySelector(".avtr-eye-countdown").classList.add("avtr-hide");
 				e.querySelector(".avtr-eye-new-arrivals").classList.add("avtr-hide");
 			}
-			//let e = d.querySelector(".avtr-svg-eye");
-			//if (e) e.style.fill = "black";
-			e = d.querySelector('a[href$="/header_photo"]');
-			if (e && (e = e.parentElement) && isHidden(e)){
+			if ((e = getProfileArea()) && isHidden(e)){
 				avtrShow(e);
-				tweetsForEach(tw=>{
-					if (tw.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]')){
-						avtrShow(tw);
-						return true;  // stop enumeration
-					}
-				});
+				if (e = getPinnedTweet()){
+					avtrShow(e);
+					if (isSeparator(e.nextElementSibling))
+						avtrShow(e.nextElementSibling);
+				}
 			}
 			lastReadTweet = tweetsContainer = null;
 			currentPage().monitoring = monitoring = false;
@@ -1082,10 +1101,8 @@
 				
 			watchdogStartAt = 0;
 			tweetsContainerObserverReady = newTweetDetected = false;
-			if (pageUrl !== location.pathname + location.search){
-				pageUrl = location.pathname + location.search;
-				alreadyRead = {};
-			}
+			if (! (alreadyRead = currentPage().alreadyRead))
+				alreadyRead = currentPage().alreadyRead = {};
 			installTweetsMutationObserver();
 			tweetsForEach(markAlreadyReadOrObserveIntersection);
 			d.addEventListener("visibilitychange", onVisibilityChange);
@@ -1094,15 +1111,13 @@
 			if (e)
 				e.classList.add("avtr-eye-monitoring");
 			if (avotter.settings.hideProfileAndPinnedTweetWhenMonitoring){
-				e = d.querySelector('a[href$="/header_photo"]');
-				if (e && (e = e.parentElement)){
+				if (e = getProfileArea()){
 					avtrHide(e);
-					tweetsForEach(tw=>{
-						if (tw.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]')){
-							avtrHide(tw);
-							return true;  // stop enumeration
-						}
-					});
+					if (e = getPinnedTweet()){
+						avtrHide(e);
+						if (isSeparator(e.nextElementSibling))
+							avtrHide(e.nextElementSibling);
+					}
 				}
 			}
 			currentPage().monitoring = monitoring = true;
@@ -1123,7 +1138,14 @@
 		{
 			let count = 0;
 			if (monitoring){
-				tweetsForEach(e=>{isVisible(e) && ! e.classList.contains("avtr-already-read") && ++count});
+				tweetsForEach(e=>{
+					if (isVisible(e)){
+						if (! e.classList.contains("avtr-already-read"))
+							count++;
+						else
+							return true; // stop enumeration
+					}
+				});
 			}
 			return count;
 		};
@@ -1149,8 +1171,30 @@
 		let pc = getPrimaryColumn();
 		return pc ? pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child') : null;
 	}
+
+	function getProfileArea()
+	{
+		let e = d.querySelector('a[href$="/photo"]');
+		return  (e && (e = e.parentElement) && (e = e.parentElement) && (e = e.parentElement)) ? e : null;
+	}
 	
-		function tweetsForEach(callback)
+	function isPinnedTweet(e)
+	{
+		return e != null && e.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]');
+	}
+	
+	function isSeparator(e)
+	{
+		return e != null && e.innerText.trim().length === 0;
+	}
+	
+	function getPinnedTweet()
+	{
+		let e = getTweetsContainer();
+		return (e && (e = e.firstElementChild) && isPinnedTweet(e)) ? e : null;
+	}
+	
+	function tweetsForEach(callback)
 	{
 		let tweetsContainer = getTweetsContainer();
 		if (tweetsContainer){
@@ -1224,14 +1268,18 @@
 		return obj2str(page, 2);
 	}
 	
+	function printPageStack()
+	{
+		for (let i = 0 ; i < avotter.page.length ; i++){
+			let page = avotter.page[i];
+			console.log("%cpage["+i+"] "+page2str(page), i === avotter.pageIndex ? "color:blue":"");
+		}
+	}
+
 	function printPageStackIfDebug()
 	{
-		if (avotter.debug){
-			for (let i = 0 ; i < avotter.page.length ; i++){
-				let page = avotter.page[i];
-				console.log("%cpage["+i+"] "+page2str(page), i === avotter.pageIndex ? "color:blue":"");
-			}
-		}
+		if (avotter.debug)
+			printPageStack();
 	}
 	
 	function currentPage()
@@ -1366,6 +1414,7 @@
 		printPageStackIfDebug();
 		installNotificationWatcher();
 		avotterButtonAddClass("avtr-transition-complete");
+		notifyInButton(avotter.hiddenItemCount);
 		if (isMobile()){
 			removeFetchAndMonitorButtonFromPage();
 			removeHomeButtonFromPage();
@@ -1773,10 +1822,9 @@
 	{
 		"use strict";
 		window["avotter"] = {
-			screenName: "",
 			pageTitle: "",
 			page: [],
-			hiddenPromotionCount: 0,
+			hiddenItemCount: 0,
 			settings: {
 				hidePromotion: true,
 				hideRecommendedUser: true,
@@ -1788,17 +1836,29 @@
 				emojiForNotification: defaultEmojiForNotification.join(","),
 				addHomeButton: true,
 				addGoTopButton: true,
-				goTopButtonAtMousePosition: true,
+				goTopButtonAtMousePosition: false,
 				closeModalDialogByDoubleClick: true,
 				forceWorkingInBackground: false,
 				storeSettingsInBrowser: false
 			},
+			addon: [],
+			addAddon: function(addon){
+				if (! addon || ! addon.name){
+					log("# addon is null or has no name");
+					return;
+				}
+				avotter.addon[addon.name] = addon;
+				if (typeof addon.initialize === "function")
+					addon.initialize();
+			},
 			// for debugging
 			getTweetsContainer: getTweetsContainer,
 			tweetsForEach: tweetsForEach,
+			scanTweets: scanTweets,
 			t2str: t2str,
 			dispatchKeystroke: dispatchKeystroke,
-			printTweets: printTweets
+			printTweets: printTweets,
+			printPageStack: printPageStack
 		};
 		
 		appendStylesheet(
@@ -1819,7 +1879,7 @@
 		// add avotter settings button
 		loadAvotterSettings();
 		addAvotterButtonToPage();
-		notifyInButton(avotter.hiddenPromotionCount);
+		notifyInButton(avotter.hiddenItemCount);
 
 
 		// moniter transition
