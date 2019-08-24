@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.3.10
+	version: 0.4.1
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -145,7 +145,7 @@
 	var jpMessageTable = {
 		"hidePromotion": "プロモーションを非表示",
 		"hideRecommendedUser": "おすすめユーザーを非表示",
-		"fitImageToArea": "画像を枠内に収める",
+		"fitImageToArea": "画像全体を枠内に表示",
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
 		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフィールと固ツイを非表示",
@@ -402,9 +402,9 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.3.10 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.1 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
-		if (window.chrome)
+		if (window.chrome && ! isMobile())
 			menu.style.font = "message-box";
 		if (isMobile())
 			menu.classList.add("avtr-mobile");
@@ -653,6 +653,8 @@
 		
 		function dispatchTweetToAddon(e, state)
 		{
+			if (! e.querySelector('article'))
+				return;
 			Object.keys(avotter.addon).forEach(k=>{
 				let addon = avotter.addon[k];
 				if (typeof addon.onTweet === "function")
