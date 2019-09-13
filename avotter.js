@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.4.1
+	version: 0.4.2
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -49,7 +49,7 @@
 	
 	function isVisible(e)
 	{
-		return ! isHidden(e);
+		return !! e.offsetParent;
 	}
 	
 	function hasPreviousVisibleSibling(e)
@@ -95,13 +95,49 @@
 		d.getElementsByTagName("head")[0].appendChild(e);
 	}
 	
-	function moniterObjectMethod(obj, funcName, moniter)
+	function hashCode(str)
 	{
-		if (obj && typeof obj[funcName] === "function"){
-			let originalFunc = obj[funcName];
-			obj[funcName] = function(){
-				moniter.apply(this, arguments);
-				return originalFunc.apply(this, arguments);
+		let hash = 0, i, chr;
+		if (str.length === 0) return hash;
+		for (i = 0 ; i < str.length ; i++) {
+			chr = str.charCodeAt(i);
+			hash = ((hash << 5) - hash) + chr;
+			hash |= 0; // Convert to 32bit integer
+		}
+		return hash;
+	}
+
+	function addObjectMethodMonitor(obj, name, monitor)
+	{
+		if (obj && obj[name] && typeof monitor === "function"){
+			let original = "avtr_original_" + name, monitors = "avtr_"+name+"_monitors", hash = hashCode(monitor.toString());
+			if (! obj[original]){
+				if (obj[name].toString().replace(/\s+/g," ") !== "function "+name+"() { [native code] }"){
+					// Someone hooking. Avoids conflicts.
+					log("## "+obj.constructor?obj.constructor.name:"obj"+"."+name+" already hooked");
+					return;
+				}
+				obj[original] = obj[name];
+				obj[name] = function(){
+					Object.keys(obj[monitors]).forEach(k=>obj[monitors][k].apply(this, arguments));
+					return obj[original].apply(this, arguments);
+				};
+				obj[monitors] = {};
+			}
+			obj[monitors][hash] = monitor;
+			return {
+				obj: obj,
+				original: original,
+				monitors: monitors,
+				hash: hash,
+				remove: function(){
+					delete obj[monitors][hash];
+					if (Object.keys(obj[monitors]).length === 0){
+						obj[name] = obj[original];
+						delete obj[original];
+						delete obj[monitors];
+					}
+				}
 			};
 		}
 	}
@@ -133,10 +169,10 @@
 	// Debug
 	//===============================================================
 
-	function log(s)
+	function log(s, css)
 	{
 		if (avotter.debug)
-			console.log(s);
+			console.log.apply(console, arguments);
 	}
 	
 	//===============================================================
@@ -149,6 +185,7 @@
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
 		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフィールと固ツイを非表示",
+		"monitorXhrInBackground": "┗バックグラウンド時xhrリクエストを監視する",
 		"showArrivalOfNewTweetsInTab": "監視中新着数/TL新着有無/通知数/DM数をタブに表示する",
 		"emojiForNotification": "┗上記表示用絵文字（監視中新着,TL新着,通知,DM）",
 		"forceWorkingInBackground": "バックグラウンドでも通知等を取得させる",
@@ -167,6 +204,7 @@
 		"this site is not twitter": "このサイトはツイッターではありません",
 		"tweet": "ツイート",
 		"NotFound": "が見つかりません",
+		"ExitApp": "Avotterを終了します",
 		"button": "ボタン",
 		"dummy": "dummy"
 	};
@@ -219,7 +257,7 @@
 			event.stopPropagation();
 		});
 		e.querySelector(".avtr-alert-msg").innerHTML = html.replace(/\n/g,"<br />");
-		e.style.display = "block";
+		avtrShow(e);
 		function fadeout(opacity)
 		{
 			if (opacity == null)
@@ -402,7 +440,7 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.1 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.2 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (window.chrome && ! isMobile())
 			menu.style.font = "message-box";
@@ -410,6 +448,10 @@
 			menu.classList.add("avtr-mobile");
 		Object.keys(avotter.settings).forEach(function(k){
 			let v = avotter.settings[k];
+			if (! window.chrome){
+				if (k === "monitorXhrInBackground")
+					return;
+			}
 			if (isMobile()){
 				if (k === "closeModalDialogByDoubleClick")
 					return;
@@ -524,6 +566,25 @@
 		e.avotterObserver.observe(e, options);
 	}
 
+	function mutationsChildListForEach(mutations, callback, opt)
+	{
+		if (opt == null)
+			opt = {};
+		for (let i = 0 ; i < mutations.length ; i++){
+			let m = mutations[i];
+			if (m.type !== "childList")
+				continue;
+			if (opt.addedNodes == null || opt.addedNodes){
+				for (let j = 0 ; j < m.addedNodes.length ; j++)
+					callback(m.addedNodes[j],"added");
+			}
+			if (opt.removedNodes == null || opt.removedNodes){
+				for (let j = 0 ; j < m.removedNodes.length ; j++)
+					callback(m.removedNodes[j],"removed");
+			}
+		}
+	}
+	
 	function printMutationsIfDebug(mutations, opt)
 	{
 		if (avotter.debug){
@@ -553,6 +614,84 @@
 		}
 	}
 
+	//===============================================================
+	//  parse tweet
+	//===============================================================
+	let parseTweet;
+	(function(){
+		function plainText(e)
+		{
+			return e ? e.innerText.replace(/\s+/g," ") : "";
+		}
+
+		function fullText(textContainer)
+		{
+			'use strict';
+			let text = "";
+			for (let i = 0 ; i < textContainer.childNodes.length ; i++){
+				let e, emoji, n = textContainer.childNodes[i];
+				if (n.nodeType === Node.TEXT_NODE){
+					text += n.data;
+				}
+				else if (n.nodeType === Node.ELEMENT_NODE){
+					if (n.getAttribute("aria-hidden") !== "true"){
+						if ((e = n.querySelector('div[aria-label]')) && (emoji = e.getAttribute("aria-label")))
+							text += emoji;
+						else if (n.tagName === "A" && n.querySelector('span[aria-hidden="true"]'))
+							text += fullText(n);
+						else
+							text += n.innerText;
+					}
+				}
+			}
+			return text;
+		}
+
+		parseTweet = function(tw)
+		{
+			'use strict';
+			let o = {}, s, e, r, tweet, rightColumn, target, header, mention, body, media, quoted, footer, tail, time, href,  a;
+			if (tweet = tw.querySelector('div[data-testid="tweet"]')){
+				(e = tweet.previousElementSibling) && (s = e.innerText) && (o.intro = plainText(e));
+				if (body = tweet.querySelector('div[lang]')){
+					target = body.parentElement.firstElementChild;
+					// userName, screenName, time
+					if (header = target){
+						(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e));
+						a && (href = a.getAttribute("href")) && (o.screenName = href.substring(1));
+						(time = header.querySelector('a > time')) && (href = time.parentElement.getAttribute("href")) && (r = href.match(/\/(\w+)\/status\/(\d+)$/)) && (o.screenName = r[1], o.tweetId = r[2]);
+						time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
+						target = header.nextElementSibling;
+					}
+					// mention
+					(mention = target) && (mention !== body) && (o.mention = plainText(mention));
+					// tweet body
+					o.tweet = fullText(body);
+					target = body.nextElementSibling;
+					// quoted or media
+					if ((quoted = target) && (quoted.getAttribute("role") !== "group")){
+						o.quoted  = plainText(quoted);
+						if (quoted.querySelector('div[data-testid="playButton"]')){
+							o.containsVideo = true;
+							(e = quoted.querySelector('div[data-testid="previewInterstitial"] > div')) && (e = e.children[1]) && (o.playCount = e.innerText);
+						}
+						target = quoted.nextElementSibling;
+					}
+					// reply, retweet, link
+					if ((footer = target) && (footer.getAttribute("role") === "group")){
+						["reply", "retweet", "like"].forEach(id=>{
+							(e = footer.querySelector('div[data-testid="'+id+'"]')) && (o[id+"Count"] = e.innerText);
+						});
+						target = footer.nextElementSibling;
+					}
+					// tail
+					(tail = target) && (o.tail = plainText(tail));
+				}
+			}
+			return o;
+		}
+	})();
+	
 	//===============================================================
 	//  moniter tweets
 	//===============================================================
@@ -623,6 +762,7 @@
 		{
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
+				log("hide: " + t2str(e, 50));
 				avtrHide(e);
 				notifyInButton(++avotter.hiddenItemCount);
 			}
@@ -632,6 +772,7 @@
 		{
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
+				log("hide: " + t2str(e, 50));
 				avtrHide(e);
 				notifyInButton(++avotter.hiddenItemCount);
 			}
@@ -653,13 +794,19 @@
 		
 		function dispatchTweetToAddon(e, state)
 		{
-			if (! e.querySelector('article'))
-				return;
-			Object.keys(avotter.addon).forEach(k=>{
-				let addon = avotter.addon[k];
-				if (typeof addon.onTweet === "function")
-					addon.onTweet(e, state)
-			});
+			let keys = Object.keys(avotter.addon);
+			if (keys.length > 0){
+				if (! e.querySelector('article') || e.classList.contains("avtr-hide"))
+					return;
+				let data = parseTweet(e);
+				keys.forEach(k=>{
+					let addon = avotter.addon[k];
+					if (typeof addon.hideThisTweet === "function"){
+						if (addon.hideThisTweet(data, state))
+							avtrHide(e);
+					}
+				});
+			}
 		}
 		
 		function onInsertBefore(e, e2)
@@ -675,8 +822,9 @@
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				dispatchTweetToAddon(e, {/*for future extension*/});
+				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
-			dispatchTweetToAddon(e, {/*for future extension*/});
 		}
 		
 		function onAppendChild(e)
@@ -693,8 +841,9 @@
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				dispatchTweetToAddon(e, {/*for future extension*/});
+				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
-			dispatchTweetToAddon(e, {/*for future extension*/});
 		}
 		
 		function onRemoveChild(e)
@@ -726,9 +875,9 @@
 					if (! tweetsContainer.avotterMoniteringTweet){
 						log("# monitorTweet started");
 						if (! tweetsContainer.avotterHookedTweet){
-							moniterObjectMethod(tweetsContainer, "insertBefore", onInsertBefore);
-							moniterObjectMethod(tweetsContainer, "appendChild", onAppendChild);
-							moniterObjectMethod(tweetsContainer, "removeChild", onRemoveChild);
+							addObjectMethodMonitor(tweetsContainer, "insertBefore", onInsertBefore);
+							addObjectMethodMonitor(tweetsContainer, "appendChild", onAppendChild);
+							addObjectMethodMonitor(tweetsContainer, "removeChild", onRemoveChild);
 							tweetsContainer.avotterHookedTweet = true;
 						}
 						scanTweets(tweetsContainer);
@@ -779,7 +928,7 @@
 		const MARK_AFTER_DURATION = 4*1000;
 		let monitoring, watchdogTimer, fetchAfterStayFor = defaultFetchAfterStayFor * 1000, 
 			scrollEvent, lastReadTweet, tweetsContainer, 
-			newTweetDetected, alreadyRead = {}, intersectionObserver, pageUrl;
+			newTweetDetected, newTweetFetched, handleXhrOpen, alreadyRead = {}, intersectionObserver;
 		
 		function installTweetsMutationObserver()
 		{
@@ -815,6 +964,17 @@
 				if (e)
 					e.innerText = Math.ceil((fetchAfterStayFor - elapsed) / 1000);
 				if (elapsed >= fetchAfterStayFor){
+					if (d.hidden && avotter.settings.monitorXhrInBackground && window.chrome){
+						if (! handleXhrOpen){
+							handleXhrOpen = addObjectMethodMonitor(XMLHttpRequest.prototype, "open", onXhrOpen);
+							if (handleXhrOpen)
+								log("# start monitoring XMLHttpRequest.open");
+						}
+					}
+					else if (handleXhrOpen){
+						handleXhrOpen.remove();
+						handleXhrOpen = null;
+					}
 					let byProgrammaticScrollSequence;
 					if (! byProgrammaticScrollSequence){
 						log("dispatch keyborad '.' event");
@@ -844,7 +1004,7 @@
 			log("# watchdog starting");
 			watchdogStartAt = Date.now();
 			watchdogTimer = setInterval(watchdog, 1*1000);
-			newTweetDetected = false;
+			newTweetDetected = newTweetFetched = false;
 			notifyInTab();
 			let e = d.querySelector(".avtr-eye-button .avtr-eye-countdown");
 			if (e){
@@ -861,28 +1021,13 @@
 				clearInterval(watchdogTimer);
 				watchdogTimer = null;
 			}
+			if (handleXhrOpen){
+				handleXhrOpen.remove();
+				handleXhrOpen = null;
+			}
 			let e = d.querySelector(".avtr-eye-button .avtr-eye-countdown");
 			if (e)
 				e.classList.add("avtr-hide");
-		}
-		
-		function mutationsChildListForEach(mutations, callback, opt)
-		{
-			if (opt == null)
-				opt = {};
-			for (let i = 0 ; i < mutations.length ; i++){
-				let m = mutations[i];
-				if (m.type !== "childList")
-					continue;
-				if (opt.addedNodes == null || opt.addedNodes){
-					for (let j = 0 ; j < m.addedNodes.length ; j++)
-						callback(m.addedNodes[j],"added");
-				}
-				if (opt.removedNodes == null || opt.removedNodes){
-					for (let j = 0 ; j < m.removedNodes.length ; j++)
-						callback(m.removedNodes[j],"removed");
-				}
-			}
 		}
 		
 		function markAlreadyReadOrObserveIntersection(e)
@@ -923,13 +1068,47 @@
 				if (lastReadTweet){
 					if (! lastReadTweet.parentElement || hasPreviousVisibleSibling(lastReadTweet)){
 						newTweetDetected = true;
+						newTweetFetched = false;
 						log("#### new tweet detected");
 						lastReadTweet = null;
 						stopWatchdog();
 					}
 				}
 			}
-			notifyInTab()
+			notifyInTab();
+		}
+		
+		function isTarget(url)
+		{
+			return /\/(search\/adaptive|timeline\/(home|list|profile\/\d+))\.json/.test(url);
+		}
+		
+		function onXhrOpen(method, url)
+		{
+			if (method.toUpperCase() === "GET" && isTarget(url)){
+				this.addEventListener("load", function(){
+					try {
+						let j = JSON.parse(this.responseText);
+						if (j.globalObjects && j.globalObjects.tweets && j.globalObjects.users){
+							let keys = Object.keys(j.globalObjects.tweets);
+							if (keys.length){
+								keys.forEach(k=>{
+									let tweet = j.globalObjects.tweets[k], user = j.globalObjects.users[tweet.user_id_str];
+									log("fetched: "+(user.name+" @"+user.screen_name+" "+tweet.full_text.replace(/\s+/g," ")).substring(0,60));
+								});
+								if (! newTweetFetched){
+									log("#### new tweets fetched");
+									newTweetFetched = true;
+									stopWatchdog();
+									notifyInTab();
+								}
+							}
+						}
+					}
+					catch(e){}
+				});
+				log("# listening event 'load' on "+ url.substring(0,50));
+			}
 		}
 		
 		function markAlreadyReadAfter(e)
@@ -1022,7 +1201,7 @@
 							e.classList.add("avtr-already-read");
 							// hidden tweets never removed. so display them and force twitter to remove them
 							if (isHidden(e) && i > 30)
-								e.style.display = "block";
+								avtrShow(e);
 						}
 						let firstTweet = tweetsContainer.firstElementChild;
 						if (isPinnedTweet(firstTweet)){
@@ -1056,6 +1235,10 @@
 			removeTweetsMutationObserver();
 			d.removeEventListener("visibilitychange", onVisibilityChange);
 			window.removeEventListener("scroll", onScroll);
+			if (handleXhrOpen){
+				handleXhrOpen.remove();
+				handleXhrOpen = null;
+			}
 			if (watchdogTimer){
 				clearInterval(watchdogTimer);
 				watchdogTimer = null;
@@ -1102,7 +1285,7 @@
 				fetchAfterStayFor = n * 1000;
 				
 			watchdogStartAt = 0;
-			tweetsContainerObserverReady = newTweetDetected = false;
+			tweetsContainerObserverReady = newTweetDetected = newTweetFetched = false;
 			if (! (alreadyRead = currentPage().alreadyRead))
 				alreadyRead = currentPage().alreadyRead = {};
 			installTweetsMutationObserver();
@@ -1149,10 +1332,126 @@
 					}
 				});
 			}
-			return count;
+			return count > 0 ? count : (d.hidden && newTweetFetched ? 1 : 0);
 		};
 	})();
 	
+	//===============================================================
+	//  moniter non-tweet miscellaneous
+	//===============================================================
+	let monitorNonTweet, scanNonTweet;
+	
+	(function(){
+		function hidePromotionTrendIn(target)
+		{
+			if (target){
+				let ee = target.querySelectorAll('path[d^="M20.75 2H3.25C2.007"]');
+				for (let i = 0 ; i < ee.length ; i++){
+					let e = ee[i];
+					while (e = e.parentElement){
+						if (e.getAttribute("data-testid") === "trend" && isVisible(e)){
+							log("hide: " + t2str(e, 50));
+							avtrHide(e);
+							notifyInButton(++avotter.hiddenItemCount);
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		scanNonTweet = function(target){
+			if (avotter.settings.hidePromotion)
+				hidePromotionTrendIn(target);
+		}
+		
+		monitorNonTweet = function(target, enable){
+			if (target){
+				let dataTestId = target.getAttribute("data-testid");
+				if (enable){
+					if (! target.avotterrNonTweetObserver){
+						log("# monitorNonTweet("+(dataTestId ? dataTestId : "")+") starting");
+						target.avotterrNonTweetObserver = new MutationObserver(function(mutations, observer){
+							mutationsChildListForEach(mutations, function(e, type){
+								if (e.classList == null)
+									return;
+								if (avotter.settings.hidePromotion)
+									hidePromotionTrendIn(e);
+							}, {removedNodes: false});
+						});
+						target.avotterrNonTweetObserver.observe(target, {childList:true, subtree:true});
+						scanNonTweet(target);
+					}
+				}
+				else {
+					if (target.avotterrNonTweetObserver){
+						target.avotterrNonTweetObserver.disconnect();
+						delete target.avotterrNonTweetObserver;
+						log("# monitorNonTweet("+(dataTestId ? dataTestId : "")+") stopped");
+					}
+				}
+			}
+		};
+	})();
+
+	//===============================================================
+	//  moniter sidebar
+	//===============================================================
+	let monitorSidebar, scanSidebar;
+	
+	(function(){
+		function hidePromotionInSidebar()
+		{
+			let ee = d.querySelectorAll('div[data-testid="sidebarColumn"] path[d^="M20.75 2H3.25C2.007"]');
+			for (let i = 0 ; i < ee.length ; i++){
+				let e = ee[i];
+				while (e = e.parentElement){
+					if (e.getAttribute("data-testid") === "trend"){
+						avtrHide(e);
+						break;
+					}
+				}
+			}
+		}
+		
+		function sidebarMutationObserver(mutations, observer)
+		{
+			log("# detect sidebar mutation");
+			if (avotter.settings.hidePromotion)
+				hidePromotionInSidebar();
+		}
+		
+		scanSidebar = function(){
+			if (avotter.settings.hidePromotion)
+				hidePromotionInSidebar();
+		}
+		
+		monitorSidebar = function(enable){
+			let sidebar = d.querySelector('div[data-testid="sidebarColumn"]'); 
+			if (sidebar){
+				if (enable){
+					if (! sidebar.avotterSidebarObserver){
+						log("# monitorSidebar starting");
+						sidebar.avotterSidebarObserver = new MutationObserver(sidebarMutationObserver);
+						sidebar.avotterSidebarObserver.observe(sidebar, {childList:true, subtree:true});
+						scanSidebar();
+					}
+				}
+				else {
+					if (sidebar.avotterSidebarObserver){
+						sidebar.avotterSidebarObserver.disconnect();
+						delete sidebar.avotterSidebarObserver;
+						log("# monitorSidebar stopped");
+					}
+				}
+			}
+			else {
+				if (! currentPage().modal)
+					log("%c# monitorSidebar() error: sidebarColumn not found", "color:red");
+			}
+		};
+	})();
+		
 	//===============================================================
 	//  
 	//===============================================================
@@ -1163,9 +1462,21 @@
 		return e.innerText.replace(/\s+/g," ").substring(0, len != null ? len : undefined);
 	}
 	
+	function loadingContents(e)
+	{
+		if (! e)
+			e = d;
+		return !! e.querySelector('div[aria-label][role="progressbar"] svg > circle');
+	}
+	
 	function getPrimaryColumn()
 	{
 		return d.querySelector('div[data-testid="primaryColumn"]');
+	}
+	
+	function getSidebarColumn()
+	{
+		return d.querySelector('div[data-testid="sidebarColumn"]'); 
 	}
 	
 	function getTweetsContainer()
@@ -1173,7 +1484,7 @@
 		let pc = getPrimaryColumn();
 		return pc ? pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child') : null;
 	}
-
+	
 	function getProfileArea()
 	{
 		let e = d.querySelector('a[href$="/photo"]');
@@ -1322,6 +1633,13 @@
 				page.type = "tweet";
 				typeDetected = true;
 			}
+			if (isTrendPage(location.pathname)){
+				if (e = containsElement(m.addedNodes, 'div[data-testid="trend"]')){
+					log("## trend added under "+e2str(e));
+					page.type = "trend";
+					typeDetected = true;
+				}
+			}
 		}
 		if (page.modal){
 			onTransitionComplete();
@@ -1329,6 +1647,9 @@
 		else if (page.type === "tweet"){
 			if (typeDetected || getTweetsContainer())
 				onTransitionComplete();
+		}
+		else if (typeDetected){
+			onTransitionComplete();
 		}
 	}
 	
@@ -1402,6 +1723,11 @@
 		return false;
 	}
 	
+	function isTrendPage(url)
+	{
+		return /^\/(explore|i\/trends)$/.test(url);
+	}
+	
 	function isNonModalUrl(url)
 	{
 		return /^\/\w+\/status\/\d+$/.test(url);
@@ -1429,12 +1755,19 @@
 		}
 		else {
 			if (page.type === "tweet"){
-				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser)
+				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser || avotter.settings.fitImageToArea || Object.keys(avotter.addon).length > 0){
 					monitorTweet(true);
+				}
 				if (avotter.settings.addFetchAndMonitorButton){
 					addFetchAndMonitorButtonToPage();
 					if (page.monitoring)
 						fetchAndMonitorNewTweet(true);
+				}
+			}
+			if (avotter.settings.hidePromotion){
+				monitorNonTweet(getSidebarColumn(), true);
+				if (isTrendPage(location.pathname)){
+					monitorNonTweet(getPrimaryColumn(), true);
 				}
 			}
 			if (isMobile() && avotter.settings.addHomeButton)
@@ -1461,6 +1794,8 @@
 		}
 		let prev = currentPage(), modalDialogClosed;
 		monitorTweet(false);
+		monitorNonTweet(getPrimaryColumn(), false);
+		monitorNonTweet(getSidebarColumn(), false);
 		let prev_monitoring = prev.monitoring;
 		fetchAndMonitorNewTweet(false);
 		prev.monitoring = prev_monitoring;
@@ -1774,14 +2109,14 @@
 		else {
 			e.style.top = e.style.left = "";
 		}
-		e.style.display = "block";
+		avtrShow(e);
 	}
 
 	function hideGoTopButton()
 	{
 		let e = d.querySelector('.avtr-gotop-button');
 		if (e)
-			e.style.display = "none";
+			avtrHide(e);
 	}
 	
 	function onScrollForGoTopButton()
@@ -1834,6 +2169,7 @@
 				addFetchAndMonitorButton: true,
 				fetchAfterStayFor: defaultFetchAfterStayFor,
 				hideProfileAndPinnedTweetWhenMonitoring: true,
+				monitorXhrInBackground: false,
 				showArrivalOfNewTweetsInTab: true,
 				emojiForNotification: defaultEmojiForNotification.join(","),
 				addHomeButton: true,
@@ -1852,6 +2188,8 @@
 				avotter.addon[addon.name] = addon;
 				if (typeof addon.initialize === "function")
 					addon.initialize();
+				if (typeof addon.hideThisTweet === "function")
+					scanTweets();
 			},
 			// for debugging
 			getTweetsContainer: getTweetsContainer,
@@ -1883,20 +2221,14 @@
 		addAvotterButtonToPage();
 		notifyInButton(avotter.hiddenItemCount);
 
-
+	
 		// moniter transition
-		moniterObjectMethod(window.history, "pushState", onHistoryPushState);
-		moniterObjectMethod(window.history, "replaceState", onHistoryReplaceState);
+		addObjectMethodMonitor(window.history, "pushState", onHistoryPushState);
+		addObjectMethodMonitor(window.history, "replaceState", onHistoryReplaceState);
 		window.addEventListener("popstate", onWindowPopstate);
 		
-		// moniter react-root
-		let reactRoot = d.querySelector('#react-root');
-		if (! reactRoot){
-			avotter.fatalError = "#react-root " + translate("NotFound");
-			return;
-		}
+		// prepare to monitor react-root
 		avotter.reactRootObserver = new MutationObserver(onReactRootChanged);
-		
 		
 		avotter.pageIndex = avotter.page.push({
 			type: getPageType(),
@@ -1931,19 +2263,38 @@
 		return;
 	}
 		
-	if (! window["avotter"])
-		init();
-	if (avotter.fatalError){
-		alert(avotter.fatalError);
+	if (window["avotter"]){
+		if (avotter.fatalError){
+			alert(avotter.fatalError+"\n"+ translate("ExitApp"));
+			return;
+		}
+		let page = currentPage();
+		if (! (page.modal || page.type)){
+			if (containsModalHeader(d))
+				page.modal = true;
+			page.type = getPageType();
+			if (page.modal || page.type)
+				onTransitionComplete();
+		}
 		return;
 	}
 	
-	let page = currentPage();
-	if (! (page.modal || page.type)){
-		if (containsModalHeader(d))
-			page.modal = true;
-		page.type = getPageType();
-		if (page.modal || page.type)
-			onTransitionComplete();
+	let reactRoot = d.querySelector('#react-root');
+	if (! reactRoot){
+		alert("#react-root " + translate("NotFound")+"\n"+ translate("ExitApp"));
+		return;
+	}
+	if (loadingContents(reactRoot)){
+		console.log("# still loading contents");
+		new MutationObserver(function(mutations, observer){
+			if (! loadingContents(reactRoot)){
+				observer.disconnect();
+				delete observer;
+				init();
+			}
+		}).observe(reactRoot, {childList:true, subtree:true});
+	}
+	else {
+		init();
 	}
 })();
