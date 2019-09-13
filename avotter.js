@@ -1,7 +1,7 @@
 /*
 {
 	name: Avotter
-	version: 0.4.2
+	version: 0.4.3
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
@@ -52,15 +52,6 @@
 		return !! e.offsetParent;
 	}
 	
-	function hasPreviousVisibleSibling(e)
-	{
-		while (e = e.previousElementSibling){
-			if (isVisible(e))
-				return true;
-		}
-		return false;
-	}
-		
 	function isAscendant(parent, e)
 	{
 		while (e.parentElement){
@@ -71,16 +62,19 @@
 		return false;
 	}
 	
-	function containsElement(ee, selector)
+	function containsElement(e, selector)
 	{
-		if (ee.constructor.name !== "NodeList")
-			ee = [ee];
-		for (let i = 0 ; i < ee.length ; i++){
-			let e = ee[i];
-			if (! e.querySelector) // text node etc.,
-				continue;
-			if (e.querySelector(selector))
-				return e;
+		return (e != null && e.querySelector) ? e.querySelector(selector) : null;
+	}
+
+	function containsElementInNodeList(ee, selector)
+	{
+		if (ee != null && ee.constructor && ee.constructor.name === "NodeList"){
+			for (let i = 0 ; i < ee.length ; i++){
+				let e = containsElement(ee[i], selector);
+				if (e)
+					return e;
+			}
 		}
 		return null;
 	}
@@ -95,22 +89,10 @@
 		d.getElementsByTagName("head")[0].appendChild(e);
 	}
 	
-	function hashCode(str)
-	{
-		let hash = 0, i, chr;
-		if (str.length === 0) return hash;
-		for (i = 0 ; i < str.length ; i++) {
-			chr = str.charCodeAt(i);
-			hash = ((hash << 5) - hash) + chr;
-			hash |= 0; // Convert to 32bit integer
-		}
-		return hash;
-	}
-
 	function addObjectMethodMonitor(obj, name, monitor)
 	{
 		if (obj && obj[name] && typeof monitor === "function"){
-			let original = "avtr_original_" + name, monitors = "avtr_"+name+"_monitors", hash = hashCode(monitor.toString());
+			let original = "avtr_original_" + name, monitors = "avtr_"+name+"_monitors", id = Date.now();
 			if (! obj[original]){
 				if (obj[name].toString().replace(/\s+/g," ") !== "function "+name+"() { [native code] }"){
 					// Someone hooking. Avoids conflicts.
@@ -124,14 +106,14 @@
 				};
 				obj[monitors] = {};
 			}
-			obj[monitors][hash] = monitor;
+			obj[monitors][id] = monitor;
 			return {
 				obj: obj,
 				original: original,
 				monitors: monitors,
-				hash: hash,
+				id: id,
 				remove: function(){
-					delete obj[monitors][hash];
+					delete obj[monitors][id];
 					if (Object.keys(obj[monitors]).length === 0){
 						obj[name] = obj[original];
 						delete obj[original];
@@ -140,6 +122,23 @@
 				}
 			};
 		}
+	}
+	
+	let arrowRightKeySequence = [
+		{type:"keydown",  key:"ArrowRight", code:"ArrowRight", keyCode:39, charCode:0, which:39},
+		{type:"keyup",  key:"ArrowRight", code:"ArrowRight", keyCode:39, charCode:0, which:39}
+	],
+	arrowLeftKeySequence = [
+		{type:"keydown",  key:"ArrowLeft", code:"ArrowLeft", keyCode:37, charCode:0, which:37},
+		{type:"keyup",  key:"ArrowLeft", code:"ArrowLeft", keyCode:37, charCode:0, which:37}
+	];
+
+	function dispatchKeySequence(target, keySequence)
+	{
+		keySequence.forEach(k=>{
+			let str = k.type + "  key:" + k.key + " code:" + k.code + " keyCode:"+k.keyCode+" charCode:"+k.charCode + " which:"+k.which;
+			target.dispatchEvent(new KeyboardEvent(k.type, {key:k.key, code:k.code, keyCode:k.keyCode, charCode:k.charCode, which:k.which}));
+		});
 	}
 	
 	let virtualKeyCode = {
@@ -184,15 +183,15 @@
 		"fitImageToArea": "画像全体を枠内に表示",
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
-		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフィールと固ツイを非表示",
-		"monitorXhrInBackground": "┗バックグラウンド時xhrリクエストを監視する",
+		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフと固ツイを非表示",
+		"monitorXhrInBackground": "┗バックグラウンド時xhrを監視する",
 		"showArrivalOfNewTweetsInTab": "監視中新着数/TL新着有無/通知数/DM数をタブに表示する",
 		"emojiForNotification": "┗上記表示用絵文字（監視中新着,TL新着,通知,DM）",
-		"forceWorkingInBackground": "バックグラウンドでも通知等を取得させる",
+		"forceWorkingInBackground": "バックグラウンドで通知等を取得",
 		"addHomeButton": "戻るボタンの横にホームボタンを表示",
 		"addGoTopButton": "文書先頭に行くボタンを表示",
-		"goTopButtonAtMousePosition": "┗上記ボタンをマウス位置に表示",
-		"closeModalDialogByDoubleClick": "ポップアップをダブルクリックで閉じる",
+		"goTopButtonAtMousePosition": "┗上記ボタン＋戻るボタンをマウス位置に表示",
+		"closeModalDialogByDoubleClick": "ポップアップをダブルクリックで閉じクリックで画像移動",
 		"storeSettingsInBrowser": "上記設定をブラウザに保存する",
 		"Apply": "適用",
 		"Close": "閉じる",
@@ -223,14 +222,14 @@
 	//===============================================================
 	// avtr
 	//===============================================================
+	function avtrShow(e, fShow)
+	{
+		(fShow == null ? true : fShow) ? e.classList.remove("avtr-hide") : e.classList.add("avtr-hide");
+	}
+
 	function avtrHide(e)
 	{
 		e.classList.add("avtr-hide");
-	}
-
-	function avtrShow(e)
-	{
-		e.classList.remove("avtr-hide");
 	}
 
 	//===============================================================
@@ -396,15 +395,13 @@
 				window.addEventListener("scroll", onScrollForGoTopButton);
 				if (! isMobile() && avotter.settings.goTopButtonAtMousePosition)
 					d.addEventListener("mousemove", onMouseMoveForGoTopButton);
-				onScrollForGoTopButton();
 			}
 			else {
 				window.removeEventListener("scroll", onScrollForGoTopButton);
 				if (! isMobile())
 					d.removeEventListener("mousemove", onMouseMoveForGoTopButton);
-				onScrollForGoTopButton();
-				hideGoTopButton();
 			}
+			showGoTopBackButton();
 		}
 		if (! isMobile()){
 			if (avotter.settings.goTopButtonAtMousePosition !== prev.goTopButtonAtMousePosition){
@@ -415,8 +412,8 @@
 				else {
 					d.removeEventListener("mousemove", onMouseMoveForGoTopButton);
 				}
+				showGoTopBackButton();
 			}
-			onScrollForGoTopButton();
 		}
 		
 		onAvotterSettingsClose();
@@ -440,7 +437,7 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.2 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.3 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (window.chrome && ! isMobile())
 			menu.style.font = "message-box";
@@ -615,6 +612,143 @@
 	}
 
 	//===============================================================
+	//  tweet and twitter system helper koko
+	//===============================================================
+	
+	let modalSelector = 'div[aria-labelledby="modal-header"]', tweetSelector = 'div[data-testid="tweet"]', trendSelector = 'div[data-testid="trend"]';
+	
+	function t2str(e, len)
+	{
+		if (e == null)
+			return "null";
+		return e.innerText.replace(/\s+/g," ").substring(0, len != null ? len : undefined);
+	}
+	
+	function showTweet(e, fShow)
+	{
+		(fShow == null ? true : fShow) ? e.classList.remove("avtr-hide") : e.classList.add("avtr-hide");
+	}
+
+	function hideTweet(e)
+	{
+		e.classList.add("avtr-hide");
+	}
+	
+	function isTweetHidden(e)
+	{
+		return isHidden(e);
+	}
+	
+	function isTweetVisible(e)
+	{
+		return isVisible(e);
+	}
+	
+	function isTweet(e)
+	{
+		return e != null && e.querySelector && e.querySelector(tweetSelector);
+	}
+	
+	function hasPreviousVisibleTweet(e)
+	{
+		while (e = e.previousElementSibling){
+			if (isTweet(e) && isTweetVisible(e))
+				return true;
+		}
+		return false;
+	}
+
+	function getModal()
+	{
+		return d.querySelector(modalSelector);
+	}
+	
+	function loadingContents(e)
+	{
+		if (! e)
+			e = d;
+		return !! e.querySelector('div[aria-label][role="progressbar"] svg > circle');
+	}
+	
+	function getPrimaryColumn()
+	{
+		return d.querySelector('div[data-testid="primaryColumn"]');
+	}
+	
+	function getSidebarColumn()
+	{
+		return d.querySelector('div[data-testid="sidebarColumn"]'); 
+	}
+	
+	function getTweetsContainer()
+	{
+		let pc = getPrimaryColumn();
+		return pc ? pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child') : null;
+	}
+	
+	function getProfileArea()
+	{
+		let e = d.querySelector('a[href$="/photo"]');
+		return  (e && (e = e.parentElement) && (e = e.parentElement) && (e = e.parentElement)) ? e : null;
+	}
+	
+	function isPinnedTweet(e)
+	{
+		return e != null && e.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]');
+	}
+	
+	function isSeparator(e)
+	{
+		return e != null && e.innerText.trim().length === 0;
+	}
+	
+	function getPinnedTweet()
+	{
+		let e = getTweetsContainer();
+		return (e && (e = e.firstElementChild) && isPinnedTweet(e)) ? e : null;
+	}
+	
+	function tweetsForEach(callback)
+	{
+		let tweetsContainer = getTweetsContainer();
+		if (tweetsContainer){
+			for (let i = 0 ; i < tweetsContainer.children.length ; i++){
+				if (callback(tweetsContainer.children[i]))
+					break;
+			}
+		}
+	}
+		
+	function printTweets()
+	{
+		tweetsForEach(e=>console.log((isTweetHidden(e) ? "[hidden]" : e.classList.contains("avtr-already-read")?"[Read]":"[Unread]")+" "+t2str(e,50)))
+	}
+
+	function printTweetsIfDebug()
+	{
+		if (avotter.debug)
+			printTweets();
+	}
+
+	function tweetIdOf(e)
+	{
+		let a = e.querySelector('a[title][href*="/status/"]');
+		return a ? a.href.substring(a.href.lastIndexOf("/")+1) : "";
+	}
+	
+	function getPageType()
+	{
+		let type = null;
+		if (! getModal()){
+			if (containsElement(getPrimaryColumn(), tweetSelector))
+				type = "tweet";
+			else if (isTrendPage(location.pathname) && containsElement(getPrimaryColumn(), trendSelector))
+				type = "trend";
+		}
+		return type
+	}
+	
+	//===============================================================
 	//  parse tweet
 	//===============================================================
 	let parseTweet;
@@ -763,7 +897,7 @@
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
 				log("hide: " + t2str(e, 50));
-				avtrHide(e);
+				hideTweet(e);
 				notifyInButton(++avotter.hiddenItemCount);
 			}
 		}
@@ -773,11 +907,11 @@
 			let r = doesNeedToHide(e, prev, next);
 			if (r){
 				log("hide: " + t2str(e, 50));
-				avtrHide(e);
+				hideTweet(e);
 				notifyInButton(++avotter.hiddenItemCount);
 			}
 			else
-				avtrShow(e);
+				showTweet(e);
 		}
 		
 		function indexof(e)
@@ -792,18 +926,34 @@
 			return i;
 		}
 		
+		function summarizeUserData(user)
+		{
+			return {
+				description: user.description,
+				location: user.location,
+				followersCount: user.followers_count,
+				friendsCount: user.friends_count,
+				createdAt: user.created_at
+			};
+		}
+		
 		function dispatchTweetToAddon(e, state)
 		{
-			let keys = Object.keys(avotter.addon);
-			if (keys.length > 0){
+			if (avotter.addonNeedsTweet){
 				if (! e.querySelector('article') || e.classList.contains("avtr-hide"))
 					return;
-				let data = parseTweet(e);
-				keys.forEach(k=>{
+				let data = parseTweet(e), user = getUserProfile(data.screenName);
+				Object.keys(avotter.addon).forEach(k=>{
 					let addon = avotter.addon[k];
 					if (typeof addon.hideThisTweet === "function"){
-						if (addon.hideThisTweet(data, state))
-							avtrHide(e);
+						if (addon.option && addon.option.userProfile)
+							user && (data.user = addon.option.rawProfile ? user : summarizeUserData(user));
+						else
+							delete data.user;
+						if (addon.hideThisTweet(data, state)){
+							hideTweet(e);
+							notifyInButton(++avotter.hiddenItemCount);
+						}
 					}
 				});
 			}
@@ -901,21 +1051,91 @@
 	//===============================================================
 	// modal dialog
 	//===============================================================
+	function getButtonFromPathD(elem, path_d)
+	{
+		let e = elem.querySelector('div[role="button"] > div > svg > g > path[d^="'+path_d+'"]');
+		return e ? e.parentElement.parentElement.parentElement.parentElement : null;
+	}
+	
+	function getCloseButton(e)
+	{
+		e && (e = getButtonFromPathD(e, "M13.414 12l5.793-5.793c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"));
+		return e;
+	}
+	
+	function getBackwordButton(e)
+	{
+		e && (e = getButtonFromPathD(e, "M20 11H7.414l4.293-4.293c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"));
+		return e;
+	}
+	
+	function getForwordButton(e)
+	{
+		e && (e = getButtonFromPathD(e, "M19.707 11.293l-6-6c-.39-.39-1.023-.39-1.414 0s-.39 1.023 0 1.414L16.586"));
+		return e;
+	}
+	
+	function getButtonFromChild(m, e)
+	{
+		if (m){
+			let b, ee = m.querySelectorAll('div[role="button"]');
+			for (let i = 0 ; i < ee.length ; i++){
+				if ((b = ee[i]) === e || isAscendant(b, e))
+					return b;
+			}
+		}
+		return null;
+	}
+	
 	function installModalDialogHandler()
 	{
-		let m = document.querySelector('div[aria-modal="true"]');
-		if (m && ! m.avotterHandlingDblClick){
-			log("# installing modal dialog handler");
-			m.avotterHandlingDblClick = true;
+		let m = getModal();
+		if (m && ! m.avotterHandlingModal){
+			m.avotterHandlingModal = true;
+			log("# installing dblclick handler to modal");
+			let pending = null, closing;
 			m.addEventListener("dblclick", function(){
-				let ee = m.querySelectorAll('div[role="button"]');
-				for (let i = 0 ; i < ee.length ; i++){
-					if (ee[i].querySelector('path[d^="M13.414 12l5.793-5.793c.39-.39.39-1.023"]')){
-						setTimeout(function(e){e.click()}, 0, ee[i]);
-						break;
-					}
+				log(event.target.tagName+".onDblclick");
+				if (pending){
+					clearTimeout(pending);
+					pending = null;
 				}
+				let b = getCloseButton(m);
+				b && (closing = true) && b.click();
 			});
+			if (getForwordButton(m)){
+				log("# installing click handler to modal");
+				let r = m.getBoundingClientRect(), threshold = r.left + (r.right - r.left) / 2;
+				m.addEventListener("click", function(){
+					log(event.target.tagName+".onClick");
+					if (closing){
+						log("closing");
+						closing = false;
+						return;
+					}
+					let b;
+					if (b = getButtonFromChild(m, event.target)){
+						log("button "+b.getAttribute("aria-label"));
+						return; //  just clicked the some button.
+					}
+					if (event.target.tagName === "IMG"){
+						let e = event.target.parentElement.parentElement.nextElementSibling;
+						if (e && e.getAttribute("data-testid") === "playButton"){
+							log("found playButton");
+							return;
+						}
+					}
+					if (! pending){
+						pending = setTimeout(function(event){
+							log("delayed " + event.target.tagName+".onClick");
+							pending = null;
+							//let k = event.clientX > threshold ? arrowRightKeySequence : arrowLeftKeySequence;
+							let e = event.clientX > threshold ? getForwordButton(m) : getBackwordButton(m);
+							e && e.click(); //dispatchKeySequence(d, k);
+						}, 300, event);
+					}
+				});
+			}
 		}
 	}
 	
@@ -1034,7 +1254,7 @@
 		{
 			let id = tweetIdOf(e);
 			if (id){
-				if (isHidden(e)){
+				if (isTweetHidden(e)){
 					alreadyRead[id] = true;
 					e.classList.add("avtr-already-read");
 				}
@@ -1066,7 +1286,7 @@
 			});
 			if (! newTweetDetected){
 				if (lastReadTweet){
-					if (! lastReadTweet.parentElement || hasPreviousVisibleSibling(lastReadTweet)){
+					if (! lastReadTweet.parentElement || hasPreviousVisibleTweet(lastReadTweet)){
 						newTweetDetected = true;
 						newTweetFetched = false;
 						log("#### new tweet detected");
@@ -1124,10 +1344,10 @@
 			let marked = 0, markAfter = 0;
 			entries.forEach(e=>{
 				if (! e.target.classList.contains("avtr-already-read")){
-					log(e.intersectionRatio.toString().substring(0,5)+" "+t2str(e.target, 50));
+					//log(e.intersectionRatio.toString().substring(0,5)+" "+t2str(e.target, 50));
 					if (e.target.avotterAlreadyRead){
 						if (e.intersectionRatio === 0){
-							log("^ added class 'avtr-already-read'");
+							//log("^ added class 'avtr-already-read'");
 							e.target.classList.add("avtr-already-read");
 							marked++;
 							if (e.target.avotterAlreadyTimer){
@@ -1149,7 +1369,7 @@
 						let id = tweetIdOf(e.target);
 						if (id){
 							alreadyRead[id] = true;
-							log("^ added to alreadyRead");
+							//log("^ added to alreadyRead");
 							/*
 							if (e.intersectionRatio === 1){
 								markAlreadyReadAfter(e.target);
@@ -1158,7 +1378,7 @@
 							*/
 						}
 						else {
-							log("#### ^ can't retrieve tweet id");
+							log("#### can't retrieve tweet id: "+t2str(e.target, 50));
 						}
 					}
 				}
@@ -1178,7 +1398,7 @@
 			else {
 				log("## document visibilty changed. intersectionObserver start observing below");
 				tweetsForEach(e=>{
-					if (isVisible(e) && ! e.classList.contains("avtr-already-read")){
+					if (isTweet(e) && isTweetVisible(e) && ! e.classList.contains("avtr-already-read")){
 						log("    "+t2str(e,50));
 						intersectionObserver.observe(e);
 					}
@@ -1199,9 +1419,11 @@
 						for (let i = 0 ; i < tweetsContainer.children.length ; i++){
 							let e = tweetsContainer.children[i];
 							e.classList.add("avtr-already-read");
+							/*
 							// hidden tweets never removed. so display them and force twitter to remove them
-							if (isHidden(e) && i > 30)
-								avtrShow(e);
+							if (isTweetHidden(e) && i > 30)
+								showTweet(e);
+							*/
 						}
 						let firstTweet = tweetsContainer.firstElementChild;
 						if (isPinnedTweet(firstTweet)){
@@ -1252,9 +1474,9 @@
 			if ((e = getProfileArea()) && isHidden(e)){
 				avtrShow(e);
 				if (e = getPinnedTweet()){
-					avtrShow(e);
+					showTweet(e);
 					if (isSeparator(e.nextElementSibling))
-						avtrShow(e.nextElementSibling);
+						showTweet(e.nextElementSibling);
 				}
 			}
 			lastReadTweet = tweetsContainer = null;
@@ -1299,9 +1521,9 @@
 				if (e = getProfileArea()){
 					avtrHide(e);
 					if (e = getPinnedTweet()){
-						avtrHide(e);
+						hideTweet(e);
 						if (isSeparator(e.nextElementSibling))
-							avtrHide(e.nextElementSibling);
+							hideTweet(e.nextElementSibling);
 					}
 				}
 			}
@@ -1324,7 +1546,7 @@
 			let count = 0;
 			if (monitoring){
 				tweetsForEach(e=>{
-					if (isVisible(e)){
+					if (isTweet(e) && isTweetVisible(e)){
 						if (! e.classList.contains("avtr-already-read"))
 							count++;
 						else
@@ -1336,6 +1558,92 @@
 		};
 	})();
 	
+	//===============================================================
+	//  moniter xhr for user
+	//===============================================================
+	let monitorXhrForUser;
+
+	function addUserProfile(user)
+	{
+		if (! avotter.users)
+			avotter.users = {};
+		avotter.users[user.screen_name.toLowerCase()] = user;
+	}
+
+	function removeUserProfile(screenName)
+	{
+		if (screenName && avotter.users)
+			delete avotter.users[screenName.toLowerCase()];
+	}
+
+	function getUserProfile(screenName)
+	{
+		return (screenName && avotter.users) ? avotter.users[screenName.toLowerCase()] : null;
+	}
+	
+	function clearUserProfile()
+	{
+		delete avotter.users;
+	}
+	
+	(function(){
+		let handleXhrOpen;
+		
+		function isTarget(url)
+		{
+			return /\/(search\/adaptive|timeline\/(home|list|profile\/\d+))\.json/.test(url);
+		}
+		
+		function onXhrOpen(method, url)
+		{
+			if (method.toUpperCase() === "GET" && isTarget(url)){
+				this.addEventListener("load", function(){
+					log("xhrForUser.onload");
+					try {
+						let j = JSON.parse(this.responseText);
+						if (j.globalObjects && j.globalObjects.tweets && j.globalObjects.users){
+							let a = [];
+							Object.keys(j.globalObjects.users).forEach(k=>{
+								let user = j.globalObjects.users[k];
+								if (user && user.screen_name){
+									addUserProfile(user);
+									a.push(user.screen_name);
+								}
+							});
+							if (a.length > 0){
+								if (!0 /* ! (d.hidden && window.chrome && avotter.settings.monitorXhrInBackground) */){
+									setTimeout(function(a){
+										a.forEach(sn=>removeUserProfile(sn));
+									}, 10*1000, a);
+								}
+							}
+						}
+					}
+					catch(e){log("#### xhrForUser.onload "+e)}
+				});
+				log("# listening event 'load' on "+ url.substring(0,50));
+			}
+		}
+
+		monitorXhrForUser = function(enable){
+			if (enable){
+				if (! handleXhrOpen){
+					log("# monitorXhrForUser starting");
+					handleXhrOpen = addObjectMethodMonitor(XMLHttpRequest.prototype, "open", onXhrOpen);
+					if (! handleXhrOpen)
+						log("# monitorXhrForUser error: addObjectMethodMonitor returned error");
+				}
+			}
+			else {
+				if (handleXhrOpen){
+					handleXhrOpen.remove();
+					handleXhrOpen = null;
+					log("# monitorXhrForUser stopped");
+				}
+			}
+		};
+	})();
+
 	//===============================================================
 	//  moniter non-tweet miscellaneous
 	//===============================================================
@@ -1395,168 +1703,9 @@
 	})();
 
 	//===============================================================
-	//  moniter sidebar
-	//===============================================================
-	let monitorSidebar, scanSidebar;
-	
-	(function(){
-		function hidePromotionInSidebar()
-		{
-			let ee = d.querySelectorAll('div[data-testid="sidebarColumn"] path[d^="M20.75 2H3.25C2.007"]');
-			for (let i = 0 ; i < ee.length ; i++){
-				let e = ee[i];
-				while (e = e.parentElement){
-					if (e.getAttribute("data-testid") === "trend"){
-						avtrHide(e);
-						break;
-					}
-				}
-			}
-		}
-		
-		function sidebarMutationObserver(mutations, observer)
-		{
-			log("# detect sidebar mutation");
-			if (avotter.settings.hidePromotion)
-				hidePromotionInSidebar();
-		}
-		
-		scanSidebar = function(){
-			if (avotter.settings.hidePromotion)
-				hidePromotionInSidebar();
-		}
-		
-		monitorSidebar = function(enable){
-			let sidebar = d.querySelector('div[data-testid="sidebarColumn"]'); 
-			if (sidebar){
-				if (enable){
-					if (! sidebar.avotterSidebarObserver){
-						log("# monitorSidebar starting");
-						sidebar.avotterSidebarObserver = new MutationObserver(sidebarMutationObserver);
-						sidebar.avotterSidebarObserver.observe(sidebar, {childList:true, subtree:true});
-						scanSidebar();
-					}
-				}
-				else {
-					if (sidebar.avotterSidebarObserver){
-						sidebar.avotterSidebarObserver.disconnect();
-						delete sidebar.avotterSidebarObserver;
-						log("# monitorSidebar stopped");
-					}
-				}
-			}
-			else {
-				if (! currentPage().modal)
-					log("%c# monitorSidebar() error: sidebarColumn not found", "color:red");
-			}
-		};
-	})();
-		
-	//===============================================================
 	//  
 	//===============================================================
-	function t2str(e, len)
-	{
-		if (e == null)
-			return "null";
-		return e.innerText.replace(/\s+/g," ").substring(0, len != null ? len : undefined);
-	}
-	
-	function loadingContents(e)
-	{
-		if (! e)
-			e = d;
-		return !! e.querySelector('div[aria-label][role="progressbar"] svg > circle');
-	}
-	
-	function getPrimaryColumn()
-	{
-		return d.querySelector('div[data-testid="primaryColumn"]');
-	}
-	
-	function getSidebarColumn()
-	{
-		return d.querySelector('div[data-testid="sidebarColumn"]'); 
-	}
-	
-	function getTweetsContainer()
-	{
-		let pc = getPrimaryColumn();
-		return pc ? pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child') : null;
-	}
-	
-	function getProfileArea()
-	{
-		let e = d.querySelector('a[href$="/photo"]');
-		return  (e && (e = e.parentElement) && (e = e.parentElement) && (e = e.parentElement)) ? e : null;
-	}
-	
-	function isPinnedTweet(e)
-	{
-		return e != null && e.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]');
-	}
-	
-	function isSeparator(e)
-	{
-		return e != null && e.innerText.trim().length === 0;
-	}
-	
-	function getPinnedTweet()
-	{
-		let e = getTweetsContainer();
-		return (e && (e = e.firstElementChild) && isPinnedTweet(e)) ? e : null;
-	}
-	
-	function tweetsForEach(callback)
-	{
-		let tweetsContainer = getTweetsContainer();
-		if (tweetsContainer){
-			for (let i = 0 ; i < tweetsContainer.children.length ; i++){
-				if (callback(tweetsContainer.children[i]))
-					break;
-			}
-		}
-	}
-		
-	function printTweets()
-	{
-		tweetsForEach(e=>console.log((isHidden(e) ? "[hidden]" : e.classList.contains("avtr-already-read")?"[Read]":"[Unread]")+" "+t2str(e,50)))
-	}
 
-	function printTweetsIfDebug()
-	{
-		if (avotter.debug)
-			printTweets();
-	}
-
-	function tweetIdOf(e)
-	{
-		let a = e.querySelector('a[title][href*="/status/"]');
-		return a ? a.href.substring(a.href.lastIndexOf("/")+1) : "";
-	}
-	
-	function containsTweet(ee)
-	{
-		return containsElement(ee, 'div[data-testid="tweet"]');
-	}
-	
-	function containsModalHeader(ee)
-	{
-		return containsElement(ee, 'div[aria-labelledby="modal-header"]');
-	}
-
-	function getPageType()
-	{
-		let type = null;
-		if (containsModalHeader(d)){
-			//type = "modal";
-		}
-		else if (containsTweet(d)){
-			type = "tweet";
-		}
-		return type
-	}
-	
 	function obj2str(o, max_depth)
 	{
 		if (o == null){
@@ -1605,6 +1754,16 @@
 		return avotter.pageIndex > 0 ? avotter.page[avotter.pageIndex - 1] : {state:{}};
 	}
 	
+	function printElementTree(e, depth)
+	{
+		if (depth == null)
+			depth = 0;
+		console.log("  ".repeat(depth) + e2str(e));
+		for (let i = 0 ; i < e.children.length ; i++){
+			printElementTree(e.children[i], depth + 1);
+		}
+	}
+	
 	function isUrlOfCompose(url)
 	{
 		return url && /^\/compose\//.test(url);
@@ -1619,37 +1778,54 @@
 			return  !/^(IMG)$/.test(e.tagName);
 		}});
 		*/
-		let e, typeDetected;
+		let e, typeAdded, modalAdded, modalRemoved;
 		for (let i = 0 ; i < mutations.length ; i++){
 			let m = mutations[i];
 			if (m.type !== "childList")
 				continue;
-			if (e = containsModalHeader(m.addedNodes)){
-				log("## modal-header added under "+e2str(e));
-				page.modal = true;
+			if (e = containsElementInNodeList(m.removedNodes, modalSelector)){
+				log("## modal-header removed from #react-root");
+				modalRemoved = true;
 			}
-			if (e = containsTweet(m.addedNodes)){
-				log("## tweet added under "+e2str(e));
+			if (e = containsElementInNodeList(m.addedNodes, modalSelector)){
+				log("## modal-header added to #react-root");
+				page.modal = modalAdded = true;
+			}
+			if (e = containsElementInNodeList(m.addedNodes, tweetSelector)){
+				log("## tweet added to #react-root");
 				page.type = "tweet";
-				typeDetected = true;
+				typeAdded = e;
 			}
 			if (isTrendPage(location.pathname)){
-				if (e = containsElement(m.addedNodes, 'div[data-testid="trend"]')){
-					log("## trend added under "+e2str(e));
+				if (e = containsElementInNodeList(m.addedNodes, trendSelector)){
+					log("## trend added to #react-root");
 					page.type = "trend";
-					typeDetected = true;
+					typeAdded = e;
 				}
 			}
 		}
 		if (page.modal){
-			onTransitionComplete();
+			if (getCloseButton(getModal())){
+				log("## modal close button detected. current page is modal");
+				onTransitionComplete();
+			}
 		}
-		else if (page.type === "tweet"){
-			if (typeDetected || getTweetsContainer())
+		else if (typeAdded){
+			if (isAscendant(getPrimaryColumn(), typeAdded)){
+				log("## current page is '"+page.type+"'");
+				onTransitionComplete();
+			}
+		}
+		else if (page.type){
+			if (modalRemoved)
 				onTransitionComplete();
 		}
-		else if (typeDetected){
-			onTransitionComplete();
+		else if (modalRemoved){
+			if (containsElement(getPrimaryColumn(), tweetSelector)){
+				log("## tweet found in primaryColumn");
+				page.type = "tweet";
+				onTransitionComplete();
+			}
 		}
 	}
 	
@@ -1733,6 +1909,12 @@
 		return /^\/\w+\/status\/\d+$/.test(url);
 	}
 	
+	function needsMonitoringTweet()
+	{
+		let page = currentPage();
+		return ! page.modal && page.type === "tweet" && (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser || avotter.settings.fitImageToArea || avotter.addonNeedsTweet);
+	}
+	
 	function onTransitionComplete()
 	{
 		let page = currentPage();
@@ -1748,16 +1930,15 @@
 			removeHomeButtonFromPage();
 		}
 		if (page.modal){
-			hideGoTopButton();
+			showGoTopBackButton({top:"hide", back:"hide"});
 			if (! isMobile() && avotter.settings.closeModalDialogByDoubleClick){
 				installModalDialogHandler();
 			}
 		}
 		else {
 			if (page.type === "tweet"){
-				if (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser || avotter.settings.fitImageToArea || Object.keys(avotter.addon).length > 0){
+				if (needsMonitoringTweet())
 					monitorTweet(true);
-				}
 				if (avotter.settings.addFetchAndMonitorButton){
 					addFetchAndMonitorButtonToPage();
 					if (page.monitoring)
@@ -1772,6 +1953,7 @@
 			}
 			if (isMobile() && avotter.settings.addHomeButton)
 				addHomeButtonToPage();
+			showGoTopBackButton();
 		}
 	}
 	
@@ -1792,13 +1974,14 @@
 				}
 			}
 		}
-		let prev = currentPage(), modalDialogClosed;
+		let prev = currentPage(), modalOnTypeClosed, tweetOnModalClosed, pushedOnModal;
 		monitorTweet(false);
 		monitorNonTweet(getPrimaryColumn(), false);
 		monitorNonTweet(getSidebarColumn(), false);
 		let prev_monitoring = prev.monitoring;
 		fetchAndMonitorNewTweet(false);
 		prev.monitoring = prev_monitoring;
+		showGoTopBackButton({top:"hide", back:"hide"});
 		let page = {
 			//type: null,
 			state: state, 
@@ -1813,6 +1996,9 @@
 					page.modal = false;
 				if (isNavItem(page.url)){
 					avotter.page = [];
+				}
+				else {
+					pushedOnModal = !! prev.modal;
 				}
 				avotter.pageIndex = avotter.page.push(page) - 1;
 			}
@@ -1829,8 +2015,10 @@
 					continue;
 				if (avotter.page[i].state.key && avotter.page[i].state.key === page.state.key){
 					found = true;
-					if (prev.modal && avotter.page[i].type === "tweet")
-						modalDialogClosed = true;
+					if (prev.modal && (! avotter.page[i].modal && avotter.page[i].type))
+						modalOnTypeClosed = avotter.page[i].type;
+					if (! prev.modal && prev.type === "tweet" && avotter.page[i].modal)
+						tweetOnModalClosed = true;
 					avotter.pageIndex = i;
 					let ascendant = {};
 					ascendant[avotter.page[i].url] = true;
@@ -1849,10 +2037,30 @@
 		}
 		log("======== transition started ========");
 		printPageStackIfDebug();
-		if (modalDialogClosed){
-			log("## modal on tweets closed");
-			onTransitionComplete();
-			return;
+		if (modalOnTypeClosed){
+			log("## modal on "+modalOnTypeClosed+" closed");
+			if (! getModal()){
+				log("## and modal not found");
+				onTransitionComplete();
+				return;
+			}
+		}
+		if (tweetOnModalClosed){
+			log("## tweets on modal closed");
+			if (getCloseButton(getModal())){
+				log("## and modal close button found");
+				onTransitionComplete();
+				return;
+			}
+		}
+		if (pushedOnModal){
+			log("## some pushed on modal");
+			if (! getModal()  && containsElement(getPrimaryColumn(), tweetSelector)){
+				log("## and modal not found. and tweet found in primaryColumn");
+				page.type = "tweet";
+				onTransitionComplete();
+				return;
+			}
 		}
 		moniterReactRoot(true);
 		avotterButtonRemoveClass("avtr-transition-complete");
@@ -2092,41 +2300,82 @@
 	//===============================================================
 	var goTopTimer;
 	
-	function showGoTopButton()
+	function getTwitterBackButton()
 	{
-		let e = d.querySelector('.avtr-gotop-button');
-		if (! e){
-			e = d.createElement("div");
-			e.innerHTML = '<svg viewBox="0 0 48 48" class="avtr-svg-gotop"><g><path d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817"/></g></svg>';
-			e.className = "avtr-gotop-button";
-			e.addEventListener("click",()=>scrollTo(0,0));
-			document.body.appendChild(e);
-		}
-		if (! isMobile() && avotter.settings.goTopButtonAtMousePosition){
-			e.style.top = avotter.mouseTop - 10 + "px";
-			e.style.left = avotter.mouseLeft - 10 + "px";
-		}
-		else {
-			e.style.top = e.style.left = "";
-		}
-		avtrShow(e);
-	}
-
-	function hideGoTopButton()
-	{
-		let e = d.querySelector('.avtr-gotop-button');
-		if (e)
-			avtrHide(e);
+		let e = d.querySelector('div[data-testid="primaryColumn"] div[role="button"] > div > svg > g > path[d^="M20 11H7.414l4.293-4.293c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"]');
+		return e ? e.parentElement.parentElement.parentElement.parentElement : null;
 	}
 	
+	function needsToShowTopButton()
+	{
+		return avotter.settings.addGoTopButton && (window.pageYOffset > window.innerHeight * 0.5);
+	}
+	
+	function canShowBackButton()
+	{
+		return avotter.settings.addGoTopButton && ! isMobile() && avotter.settings.goTopButtonAtMousePosition && getTwitterBackButton();
+	}
+
+	function showGoTopBackButton(cmd)
+	{
+		if (cmd == null)
+			cmd = {};
+		let showTopButton = cmd.top === "show" ? true : cmd.top === "hide" ? false : needsToShowTopButton(), showBackButton;
+		if (! isMobile())
+			showBackButton = canShowBackButton() ? cmd.back !== "hide" : false;
+		let e = d.querySelector('.avtr-gotop-button'), backButton, topButton;
+		if (! e){
+			if (! (showTopButton || showBackButton))
+				return;
+			e = d.createElement("div");
+			e.innerHTML = (! isMobile() ? '<div class="avtr-arrow-button"><svg viewBox="0 0 48 48" class="avtr-svg-arrow"><g><path  class="avtr-path-left" d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817" /></g></svg></div>' : "") + '<div class="avtr-arrow-button"><svg viewBox="0 0 48 48" class="avtr-svg-arrow"><g><path d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817"/></g></svg></div>';
+			e.className = "avtr-gotop-button";
+			if (isMobile()){
+				topButton = e.firstElementChild;
+				topButton.addEventListener("click",()=>scrollTo(0,0));
+				topButton.classList.add("avtr-mobile");
+				topButton.querySelector("svg").classList.add("avtr-mobile");
+			}
+			else {
+				backButton = e.firstElementChild;
+				topButton = e.lastElementChild;
+				topButton.addEventListener("click",()=>scrollTo(0,0));
+				backButton.addEventListener("click",()=>{
+					let back = getTwitterBackButton();
+					back && back.click();
+				});
+			}
+			document.body.appendChild(e);
+		}
+		else {
+			if (! isMobile()){
+				backButton = e.firstElementChild;
+				topButton = e.lastElementChild;
+			}
+		}
+		if (isMobile()){
+			e.style.top = e.style.left = "";
+			avtrShow(e, showTopButton);
+		}
+		else {
+			if (avotter.settings.goTopButtonAtMousePosition){
+				e.style.top = avotter.mouseTop - 10 + "px";
+				e.style.left = avotter.mouseLeft - 10 + "px";
+			}
+			else {
+				e.style.top = e.style.left = "";
+			}
+			 avtrShow(topButton, showTopButton);
+			 avtrShow(backButton, showBackButton);
+			 avtrShow(e, (showTopButton || showBackButton));
+		}
+	}
+
 	function onScrollForGoTopButton()
 	{
 		if (! goTopTimer){
-			if (window.pageYOffset > window.innerHeight)
-				showGoTopButton();
-			else
-				hideGoTopButton();
-			goTopTimer = setTimeout(()=>{goTopTimer=null}, 500);
+			showGoTopBackButton();
+			goTopTimer = setTimeout(function(){goTopTimer=null}, 200);
 		}
 	}
 	
@@ -2186,11 +2435,26 @@
 					return;
 				}
 				avotter.addon[addon.name] = addon;
+				avotter.addonNeedsTweet = false;
+				let needsProfile;
+				Object.keys(avotter.addon).forEach(k=>{
+					let a = avotter.addon[k];
+					if (typeof a.hideThisTweet === "function")
+						avotter.addonNeedsTweet = true;
+					if (a.option && a.option.userProfile)
+						needsProfile = true;
+				});
+				monitorTweet(needsMonitoringTweet());
+				monitorXhrForUser(needsProfile);
+				if (! needsProfile){
+					clearUserProfile();
+				}
 				if (typeof addon.initialize === "function")
 					addon.initialize();
 				if (typeof addon.hideThisTweet === "function")
 					scanTweets();
 			},
+			addonNeedsTweet: false,
 			// for debugging
 			getTweetsContainer: getTweetsContainer,
 			tweetsForEach: tweetsForEach,
@@ -2213,7 +2477,7 @@
 			+'.avtr-already-read{background-color:#f0f0f0}'
 			+'.avtr-home-button{margin:auto 5px auto -5px;height:1.75rem;color:gold;fill:currentcolor}'
 			+'.avtr-eye-button{position:relative;cursor:pointer;width:2rem;padding:0.3rem 0 0 0.3rem;fill:gold}.avtr-svg-eye{height:1.8rem}.avtr-eye-monitoring{background-color:black}.avtr-eye-new-arrivals{position:absolute;width:1.5rem;top:-0.2rem;right:-1rem;text-align:center;border-radius:50%;color:red;background-color:red;color:white;font:small-caps bold 1rem sans-serif}.avtr-eye-countdown{position:absolute;width:1.4rem;top:0.6rem;left:0.3rem;text-align:center;border-radius:50%;color:red;background-color:gold;font:small-caps bold 0.9rem sans-serif}'
-			+'.avtr-gotop-button{position:relative;width:2.2rem;height:2.2rem;background-color:gold;cursor:pointer;padding:3px 0 0 4px;border-radius:50%;position:fixed;bottom:1rem;left:1rem;z-index:3;}.avtr-svg-gotop{width:1.8rem}'
+			+'.avtr-gotop-button{position:relative;position:fixed;bottom:1rem;left:1rem;z-index:3;}.avtr-arrow-button{width:2rem;height:2rem;text-align:center;background-color:gold;cursor:pointer;border-radius:50%;}.avtr-arrow-button.avtr-mobile{width:2.6rem!important;height:2.6rem!important}.avtr-svg-arrow.avtr-mobile{margin-top:0.3rem}.avtr-svg-arrow{width:1.8rem}.avtr-path-left{transform-origin:50% 50%;transform:rotate(272deg);}'
 		);
 
 		// add avotter settings button
@@ -2237,7 +2501,7 @@
 			url: location.pathname+location.search
 		}) - 1;
 		let page = currentPage();
-		if (containsModalHeader(d))
+		if (getModal())
 			page.modal = true;
 		
 		// moniter nav icons to detect notification
@@ -2270,7 +2534,7 @@
 		}
 		let page = currentPage();
 		if (! (page.modal || page.type)){
-			if (containsModalHeader(d))
+			if (getModal())
 				page.modal = true;
 			page.type = getPageType();
 			if (page.modal || page.type)
