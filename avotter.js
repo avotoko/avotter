@@ -1,13 +1,13 @@
 /*
 {
 	name: Avotter
-	version: 0.4.3
+	version: 0.4.5
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
 */
 (function(){
-	let d = document;
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.5';
 
 	//===============================================================
 	// Helpers
@@ -181,6 +181,7 @@
 		"hidePromotion": "プロモーションを非表示",
 		"hideRecommendedUser": "おすすめユーザーを非表示",
 		"fitImageToArea": "画像全体を枠内に表示",
+		"delayForFitImage": "┗枠内表示処理遅延時間（ミリ秒）",
 		"addFetchAndMonitorButton": "自動更新新着監視ボタンを表示",
 		"fetchAfterStayFor": "┗監視中更新実行までの文書先頭滞在時間（秒）",
 		"hideProfileAndPinnedTweetWhenMonitoring": "┗監視中はプロフと固ツイを非表示",
@@ -245,8 +246,8 @@
 		if (title == null)
 			title = "Alert";
 		let e = d.createElement("div");
-		e.innerHTML = '<div class="avtr-alert"><div>Avotter '+translate(title)+'</div><hr /><span class="avtr-alert-msg"></span></p><button type="button">Close</button></div>';
-		e = e.firstChild;
+		e.className = "avtr-alert";
+		e.innerHTML = '<div>Avotter '+translate(title)+'</div><hr /><p><span class="avtr-alert-msg"></span></p><button type="button">Close</button>';
 		d.body.appendChild(e);
 		e.querySelector("button").addEventListener("click", function(){
 			let e = event.target.parentElement;
@@ -256,7 +257,7 @@
 			event.stopPropagation();
 		});
 		e.querySelector(".avtr-alert-msg").innerHTML = html.replace(/\n/g,"<br />");
-		avtrShow(e);
+		e.style.display = "block";
 		function fadeout(opacity)
 		{
 			if (opacity == null)
@@ -327,7 +328,7 @@
 	
 	function isValidSetting(k,v)
 	{
-		if (k === "fetchAfterStayFor"){
+		if (k === "fetchAfterStayFor" || k === "delayForFitImage"){
 			let n = v * 1;
 			if (! v || isNaN(n) || n < 0){
 				alert(translate("invalid value")+"\n"+translate(k)+": "+v, 10*1000);
@@ -345,7 +346,8 @@
 		let menu = d.getElementById("avtr-settings"), 
 			items = menu.querySelectorAll(".avtr-settings-item"),
 			prev = {},
-			needToScan = false;
+			needToScan = false,
+			delayForFitImageChanged;
 		for (let i = 0 ; i < items.length ; i++){
 			let e = items[i], k = e.getAttribute("avtr-option-name"), oldVal = prev[k] = avotter.settings[k], v;
 			if (typeof oldVal === "boolean"){
@@ -359,6 +361,10 @@
 				v = e.value;
 				if (! isValidSetting(k, v))
 					return;
+				if (oldVal !== v){
+					if (k === "delayForFitImage")
+						delayForFitImageChanged = true;
+				}
 			}
 			avotter.settings[k] = v;
 		}
@@ -366,6 +372,8 @@
 			saveAvotterSettings();
 		else
 			clearAvotterSettings();
+		if (delayForFitImageChanged)
+			delayForFitImage = avotter.settings.delayForFitImage * 1;
 		let page = currentPage();
 		if (! page.modal && page.type === "tweet"){
 			if (needToScan)
@@ -437,7 +445,9 @@
 			);
 		}
 		let e = d.createElement("div");
-		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">Avotter v.0.4.3 '+translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
+		e.innerHTML = '<div id="avtr-settings" class="avtr-settings"><span class="avtr-settings-title">'
+		+ 'Avotter ' + AVOTTER_VERSION_STRING
+		+ ' ' + translate("Settings")+'</span><hr/><div class="avtr-settings-items"></div><div style="text-align:center"><button type="button" class="avtr-apply-and-close"></button><button type="button" class="avtr-close"></button></div></div>';
 		var menu = e.firstElementChild, items = "";
 		if (window.chrome && ! isMobile())
 			menu.style.font = "message-box";
@@ -784,30 +794,32 @@
 		parseTweet = function(tw)
 		{
 			'use strict';
-			let o = {}, s, e, r, tweet, rightColumn, target, header, mention, body, media, quoted, footer, tail, time, href,  a;
+			let o = {}, s, e, r, tweet, 	rightColumn, target, header, body, mention, text, media, quoted, footer, tail, time, href,  a;
 			if (tweet = tw.querySelector('div[data-testid="tweet"]')){
-				(e = tweet.previousElementSibling) && (s = e.innerText) && (o.intro = plainText(e));
-				if (body = tweet.querySelector('div[lang]')){
-					target = body.parentElement.firstElementChild;
-					// userName, screenName, time
-					if (header = target){
-						(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e));
-						a && (href = a.getAttribute("href")) && (o.screenName = href.substring(1));
-						(time = header.querySelector('a > time')) && (href = time.parentElement.getAttribute("href")) && (r = href.match(/\/(\w+)\/status\/(\d+)$/)) && (o.screenName = r[1], o.tweetId = r[2]);
-						time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
-						target = header.nextElementSibling;
-					}
+				rightColumn = tweet.firstElementChild.nextElementSibling;
+				header = rightColumn.firstElementChild;
+				{
+					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e));
+					a && (href = a.getAttribute("href")) && (o.screenName = href.substring(1));
+					(time = header.querySelector('a > time')) && (href = time.parentElement.getAttribute("href")) && (r = href.match(/\/(\w+)\/status\/(\d+)$/)) && (o.screenName = r[1], o.tweetId = r[2]);
+					time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
+				}
+				body = header.nextElementSibling;
+				if (text = body.querySelector('div[lang]')){
+					target = body.firstElementChild;
 					// mention
-					(mention = target) && (mention !== body) && (o.mention = plainText(mention));
+					(mention = target) && (mention !== text.parentElement) && (o.mention = plainText(mention));
 					// tweet body
-					o.tweet = fullText(body);
-					target = body.nextElementSibling;
+					o.tweet = fullText(text);
+					target = text.parentElement.nextElementSibling;
 					// quoted or media
 					if ((quoted = target) && (quoted.getAttribute("role") !== "group")){
 						o.quoted  = plainText(quoted);
 						if (quoted.querySelector('div[data-testid="playButton"]')){
 							o.containsVideo = true;
-							(e = quoted.querySelector('div[data-testid="previewInterstitial"] > div')) && (e = e.children[1]) && (o.playCount = e.innerText);
+							if (r = o.quoted.match(/(\d[\d\.,]*万?)回表示/)){
+								o.playCount = r[1];
+							}
 						}
 						target = quoted.nextElementSibling;
 					}
@@ -829,28 +841,37 @@
 	//===============================================================
 	//  moniter tweets
 	//===============================================================
-	let monitorTweet, scanTweets;
+	let monitorTweet, scanTweets, defaultDelayForFitImage = isMobile() ? "300" : "150", delayForFitImage = defaultDelayForFitImage * 1;
 	
-	(function(){
-		let delayForFitImage = 100;
+	(function(){//fetchAfterStayFor = defaultFetchAfterStayFor * 1000
+		let fitImageClassName = "avtr-fit-image";
 		
 		function fitImageToArea(tw, restore)
 		{
-			let ee = tw.querySelectorAll('div[style*="margin"] > div[style*="background-image"] + img[src*="twimg.com/media/"]');
-			for (let i = 0 ; i < ee.length ; i++){
-				e = ee[i].parentElement;
-				if (! restore){
-					if (! e.avotterStyle){
-						e.avotterStyle = e.getAttribute("style");
-						e.setAttribute("style", "margin:;"); // set dummy for above querySelectorAll
-						e.firstElementChild.style.backgroundSize = "contain";
-					}
+			if (restore){
+				let ee = tw.getElementsByClassName(fitImageClassName);
+				for (let i = 0 ; i < ee.length ; i++){
+					let e = ee[i];
+					e.classList.remove(fitImageClassName);
+					e.firstElementChild.style.backgroundSize = "";
+					if (typeof e.avtrFitImageStyle === "string")
+						e.setAttribute("style", e.avtrFitImageStyle);
+					delete e.avtrFitImageStyle;
 				}
-				else {
-					if (e.avotterStyle){
-						e.setAttribute("style", e.avotterStyle);
-						delete e.avotterStyle;
-						e.firstElementChild.style.backgroundSize = "";
+			}
+			else {
+				let ee = tw.querySelectorAll('div > div[style*="background-image"] + img[src*="twimg.com/"]');
+				for (let i = 0 ; i < ee.length ; i++){
+					if (/\/(media|ext_tw_video_thumb)\//.test(ee[i].src)){
+						let e = ee[i].parentElement, style = e.getAttribute("style");
+						if (style && style.includes("margin")){
+							if (! e.classList.contains(fitImageClassName)){
+								e.classList.add(fitImageClassName);
+								e.avtrFitImageStyle = style;
+								e.removeAttribute("style");
+								e.firstElementChild.style.backgroundSize = "contain";
+							}
+						}
 					}
 				}
 			}
@@ -1022,6 +1043,7 @@
 			let tweetsContainer = getTweetsContainer();
 			if (tweetsContainer){
 				if (enable){
+					delayForFitImage = avotter.settings.delayForFitImage * 1;
 					if (! tweetsContainer.avotterMoniteringTweet){
 						log("# monitorTweet started");
 						if (! tweetsContainer.avotterHookedTweet){
@@ -2331,6 +2353,7 @@
 			e.innerHTML = (! isMobile() ? '<div class="avtr-arrow-button"><svg viewBox="0 0 48 48" class="avtr-svg-arrow"><g><path  class="avtr-path-left" d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817" /></g></svg></div>' : "") + '<div class="avtr-arrow-button"><svg viewBox="0 0 48 48" class="avtr-svg-arrow"><g><path d="M5.2292687594890594,21.073170736432076l18.341463431715965,-17.170731723308563l18.965853676199913,17.248780503869057l-2.341463416814804,2.2634146362543106l-14.907317087054253,-13.424390256404877l1.6390243917703629,33.873170763254166l-3.668292686343193,0l-1.404878050088879,-34.18536588549614l-14.048780500888828,13.346341475844383l-2.341463416814804,-2.185365855693817"/></g></svg></div>';
 			e.className = "avtr-gotop-button";
 			if (isMobile()){
+				e.style.bottom = "4rem";
 				topButton = e.firstElementChild;
 				topButton.addEventListener("click",()=>scrollTo(0,0));
 				topButton.classList.add("avtr-mobile");
@@ -2415,6 +2438,7 @@
 				hidePromotion: true,
 				hideRecommendedUser: true,
 				fitImageToArea: true,
+				delayForFitImage: defaultDelayForFitImage,
 				addFetchAndMonitorButton: true,
 				fetchAfterStayFor: defaultFetchAfterStayFor,
 				hideProfileAndPinnedTweetWhenMonitoring: true,
@@ -2477,7 +2501,7 @@
 			+'.avtr-already-read{background-color:#f0f0f0}'
 			+'.avtr-home-button{margin:auto 5px auto -5px;height:1.75rem;color:gold;fill:currentcolor}'
 			+'.avtr-eye-button{position:relative;cursor:pointer;width:2rem;padding:0.3rem 0 0 0.3rem;fill:gold}.avtr-svg-eye{height:1.8rem}.avtr-eye-monitoring{background-color:black}.avtr-eye-new-arrivals{position:absolute;width:1.5rem;top:-0.2rem;right:-1rem;text-align:center;border-radius:50%;color:red;background-color:red;color:white;font:small-caps bold 1rem sans-serif}.avtr-eye-countdown{position:absolute;width:1.4rem;top:0.6rem;left:0.3rem;text-align:center;border-radius:50%;color:red;background-color:gold;font:small-caps bold 0.9rem sans-serif}'
-			+'.avtr-gotop-button{position:relative;position:fixed;bottom:1rem;left:1rem;z-index:3;}.avtr-arrow-button{width:2rem;height:2rem;text-align:center;background-color:gold;cursor:pointer;border-radius:50%;}.avtr-arrow-button.avtr-mobile{width:2.6rem!important;height:2.6rem!important}.avtr-svg-arrow.avtr-mobile{margin-top:0.3rem}.avtr-svg-arrow{width:1.8rem}.avtr-path-left{transform-origin:50% 50%;transform:rotate(272deg);}'
+			+'.avtr-gotop-button{position:fixed;bottom:1rem;left:1rem;z-index:3;}.avtr-arrow-button{width:2rem;height:2rem;text-align:center;background-color:gold;cursor:pointer;border-radius:50%;}.avtr-arrow-button.avtr-mobile{width:2.6rem!important;height:2.6rem!important}.avtr-svg-arrow.avtr-mobile{margin-top:0.3rem}.avtr-svg-arrow{width:1.8rem}.avtr-path-left{transform-origin:50% 50%;transform:rotate(272deg);}'
 		);
 
 		// add avotter settings button
