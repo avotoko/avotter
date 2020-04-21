@@ -1,13 +1,13 @@
 /*
 {
 	name: Avotter
-	version: 0.4.5
+	version: 0.4.6
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
 */
 (function(){
-	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.5';
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.6';
 
 	//===============================================================
 	// Helpers
@@ -693,7 +693,7 @@
 	function getTweetsContainer()
 	{
 		let pc = getPrimaryColumn();
-		return pc ? pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child') : null;
+		return pc &&  (pc.querySelector('h1[aria-level="1"] + div > div[style*="relative"][style*="min-height"]') || pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child'));
 	}
 	
 	function getProfileArea()
