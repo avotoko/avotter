@@ -1,13 +1,13 @@
 /*
 {
 	name: Avotter
-	version: 0.4.6
+	version: 0.4.7
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
 */
 (function(){
-	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.6';
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.7';
 
 	//===============================================================
 	// Helpers
@@ -771,21 +771,19 @@
 		function fullText(textContainer)
 		{
 			'use strict';
-			let text = "";
-			for (let i = 0 ; i < textContainer.childNodes.length ; i++){
-				let e, emoji, n = textContainer.childNodes[i];
-				if (n.nodeType === Node.TEXT_NODE){
-					text += n.data;
-				}
-				else if (n.nodeType === Node.ELEMENT_NODE){
-					if (n.getAttribute("aria-hidden") !== "true"){
-						if ((e = n.querySelector('div[aria-label]')) && (emoji = e.getAttribute("aria-label")))
-							text += emoji;
-						else if (n.tagName === "A" && n.querySelector('span[aria-hidden="true"]'))
-							text += fullText(n);
-						else
-							text += n.innerText;
-					}
+			let text = "", n = textContainer;
+			if (n.nodeType === Node.ELEMENT_NODE && n.tagName === "IMG"){
+				let e = n, r;
+				if (r = e.src.match(/\/emoji\/.+\/([0-9a-f]+)\.svg$/))
+					text += String.fromCodePoint("0x"+r[1]);
+			}
+			else {
+				for (let i = 0 ; i < textContainer.childNodes.length ; i++){
+					n = textContainer.childNodes[i];
+					if (n.nodeType === Node.TEXT_NODE)
+						text += n.data;
+					else if (n.nodeType === Node.ELEMENT_NODE)
+						text += fullText(n);
 				}
 			}
 			return text;
@@ -794,8 +792,11 @@
 		parseTweet = function(tw)
 		{
 			'use strict';
-			let o = {}, s, e, r, tweet, 	rightColumn, target, header, body, mention, text, media, quoted, footer, tail, time, href,  a;
+			let o = {}, s, e, r, tweet, 	rightColumn, target, header, body, mention, text, media, video, quoted, footer, tail, time, href,  a;
 			if (tweet = tw.querySelector('div[data-testid="tweet"]')){
+				let pre = tweet.previousElementSibling;
+				if (pre.querySelector('svg > g > path[d^="M23.615 15.477c-"]'))
+					o.retweet = true;
 				rightColumn = tweet.firstElementChild.nextElementSibling;
 				header = rightColumn.firstElementChild;
 				{
@@ -805,34 +806,48 @@
 					time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
 				}
 				body = header.nextElementSibling;
-				if (text = body.querySelector('div[lang]')){
-					target = body.firstElementChild;
-					// mention
-					(mention = target) && (mention !== text.parentElement) && (o.mention = plainText(mention));
-					// tweet body
-					o.tweet = fullText(text);
-					target = text.parentElement.nextElementSibling;
-					// quoted or media
-					if ((quoted = target) && (quoted.getAttribute("role") !== "group")){
-						o.quoted  = plainText(quoted);
-						if (quoted.querySelector('div[data-testid="playButton"]')){
-							o.containsVideo = true;
-							if (r = o.quoted.match(/(\d[\d\.,]*万?)回表示/)){
-								o.playCount = r[1];
-							}
+				for(let i = 0 ; i < body.children.length ; i++){
+					target = body.children[i];
+					if (i === 0){
+						if ((mention = plainText(target)) && /^返信先:/.test(mention)){
+							o.mention = mention;
+							target = body.children[++i];
 						}
-						target = quoted.nextElementSibling;
+						// tweet body
+						o.tweet = fullText(target);
 					}
-					// reply, retweet, link
-					if ((footer = target) && (footer.getAttribute("role") === "group")){
+					else if (e = target.querySelector('div[role="blockquote"]')){
+						o.blockquote  = fullText(e);
+					}
+					else if (target.querySelector('a[href$="/photo/1"]')){
+						o.containsPhoto = true;
+						if (e = target.querySelector('a[href$="/media_tags"]')){
+							o.mediaTags = plainText(e);
+						}
+					}
+					else if (target.querySelector('div[data-testid="playButton"]')){
+						video = target;
+						o.containsVideo = true;
+						if (e = target.querySelector('a[href$="/media_tags"]')){
+							o.mediaTags = plainText(e);
+						}
+						if (r = plainText(video).match(/(\d[\d\.,]*万?)回表示/)){
+							o.playCount = r[1];
+						}
+						if (e = target.querySelector('div[aria-label$="さんから"]')){
+							o.quoted  = fullText(e);
+						}
+					}
+					else if (target.querySelector('svg > g > path[d^="M11.96 14.945c-.067"]')){
+						o.quoted  = plainText(target);
+					}
+					else if (target.getAttribute("role") === "group" && target.querySelector('div[data-testid="reply"]')){
 						["reply", "retweet", "like"].forEach(id=>{
-							(e = footer.querySelector('div[data-testid="'+id+'"]')) && (o[id+"Count"] = e.innerText);
+							(e = target.querySelector('div[data-testid="'+id+'"]')) && (o[id+"Count"] = e.innerText);
 						});
-						target = footer.nextElementSibling;
 					}
-					// tail
-					(tail = target) && (o.tail = plainText(tail));
 				}
+				//(tail = target) && (o.tail = plainText(tail));
 			}
 			return o;
 		}
