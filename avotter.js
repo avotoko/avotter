@@ -1,13 +1,13 @@
 /*
 {
 	name: Avotter
-	version: 0.4.7
+	version: 0.4.8
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
 */
 (function(){
-	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.7';
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.8 nightly';
 
 	//===============================================================
 	// Helpers
@@ -2046,6 +2046,12 @@
 			avotter.page[avotter.pageIndex] = page;
 		}
 		else { // if (method === "popstate")
+			if (! page.state){
+				if (avotter.page.length >= 2){
+					page.state = avotter.page[avotter.page.length - 2].state;
+					log("### fake page.state:",page.state);
+				}
+			}
 			let found;
 			for (let i = avotter.page.length - 1 ; i >= 0 ; i--){
 				if (! avotter.page[i].state || ! page.state)
@@ -2535,7 +2541,7 @@
 		
 		avotter.pageIndex = avotter.page.push({
 			type: getPageType(),
-			state: window.history.state ? window.history.state : {},
+			state: window.history.state ? window.history.state : {key:"abcdefgh"},
 			title: null, 
 			url: location.pathname+location.search
 		}) - 1;
