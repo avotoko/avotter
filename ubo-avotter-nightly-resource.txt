@@ -1,21 +1,6 @@
 avotter.js application/javascript
 (function(){
-console.log("ubo loading avotter.js");
-if (! window["fmbm-script"]){
-	window["fmbm-script"] = {};
-}
-window["fmbm-script"]["avotter.js"] = function(){
-// #### begin body
-/*
-{
-	name: Avotter
-	version: 0.4.8
-	author: avotoko
-	description: Improve the usability of twitter.com (new design of 2019)
-}
-*/
-(function(){
-	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.8 nightly';
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.9 nightly';
 //
 	//===============================================================
 	// Helpers
@@ -37,7 +22,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return s;
 	}
-	//
+//
 	function o2str(o)
 	{
 		if (o){
@@ -54,12 +39,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		return ! e.offsetParent;
 	}
-	//
+//
 	function isVisible(e)
 	{
 		return !! e.offsetParent;
 	}
-	//
+//
 	function isAscendant(parent, e)
 	{
 		while (e.parentElement){
@@ -69,7 +54,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return false;
 	}
-	//
+//
 	function containsElement(e, selector)
 	{
 		return (e != null && e.querySelector) ? e.querySelector(selector) : null;
@@ -86,7 +71,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return null;
 	}
-	//
+//
 	function appendStylesheet(rules, id)
 	{
 		let e = d.createElement("style");
@@ -96,7 +81,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		e.innerHTML = rules;
 		d.getElementsByTagName("head")[0].appendChild(e);
 	}
-	//
+//
 	function addObjectMethodMonitor(obj, name, monitor)
 	{
 		if (obj && obj[name] && typeof monitor === "function"){
@@ -131,7 +116,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			};
 		}
 	}
-	//
+//
 	let arrowRightKeySequence = [
 		{type:"keydown",  key:"ArrowRight", code:"ArrowRight", keyCode:39, charCode:0, which:39},
 		{type:"keyup",  key:"ArrowRight", code:"ArrowRight", keyCode:39, charCode:0, which:39}
@@ -148,11 +133,11 @@ window["fmbm-script"]["avotter.js"] = function(){
 			target.dispatchEvent(new KeyboardEvent(k.type, {key:k.key, code:k.code, keyCode:k.keyCode, charCode:k.charCode, which:k.which}));
 		});
 	}
-	//
+//
 	let virtualKeyCode = {
 		'a': 65, 'b': 66, 'c': 67, 'd': 68, 'e': 69, 'f': 70, 'g': 71, 'h': 72, 'i': 73, 'j': 74, 'k': 75, 'l': 76, 'm': 77, 'n': 78, 'o': 79, 'p': 80, 'q': 81, 'r': 82, 's': 83, 't': 84, 'u': 85, 'v': 86, 'w': 87, 'x': 88, 'y': 89, 'z': 90, 'A': 65, 'B': 66, 'C': 67, 'D': 68, 'E': 69, 'F': 70, 'G': 71, 'H': 72, 'I': 73, 'J': 74, 'K': 75, 'L': 76, 'M': 77, 'N': 78, 'O': 79, 'P': 80, 'Q': 81, 'R': 82, 'S': 83, 'T': 84, 'U': 85, 'V': 86, 'W': 87, 'X': 88, 'Y': 89, 'Z': 90, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, '!': 49, '"': 50, '#': 51, '$': 52, '%': 53, '&': 54, '\'': 55, '(': 56, ')': 57,'-': 173, '=': 173, '^': 160, '~': 160, '\\': 220, '|': 220, '@': 64, '`': 64, '[': 219, '{': 219, ';': 59, '+': 59, ':': 58, '*': 58, ']': 221, '}': 221, ',': 188, '<': 188, '.': 190, '>': 190, '/': 191, '?': 191, '_': 220, ' ': 32
 	};
-	//
+//
 	function dispatchKeystroke(target, keystroke)
 	{
 		for(let i = 0 ; i < keystroke.length ; i++){
@@ -171,7 +156,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			});
 		}
 	}
-		//
+//
 	//===============================================================
 	// Debug
 	//===============================================================
@@ -181,7 +166,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		if (avotter.debug)
 			console.log.apply(console, arguments);
 	}
-	//
+//
 	//===============================================================
 	//  Languages
 	//===============================================================
@@ -216,7 +201,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		"button": "ボタン",
 		"dummy": "dummy"
 	};
-	//
+//
 	function translate(s)
 	{
 		let s2;
@@ -227,7 +212,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		else
 			return s;
 	}
-	//
+//
 	//===============================================================
 	// avtr
 	//===============================================================
@@ -282,14 +267,14 @@ window["fmbm-script"]["avotter.js"] = function(){
 			duration = 3000;
 		e.avotterTimer = setTimeout(fadeout, duration);
 	}
-	//
+//
 	//===============================================================
 	// Avotter Settings
 	//===============================================================
 	let defaultFetchAfterStayFor = "10",
 		defaultEmojiForNotification = ["👁","🏠","🔔","✉"]
 		;
-	//
+//
 	function loadAvotterSettings()
 	{
 		// remove obsolete option
@@ -305,7 +290,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		});
 	}
-	//
+//
 	function saveAvotterSettings()
 	{
 		Object.keys(avotter.settings).forEach(k=>{
@@ -317,14 +302,14 @@ window["fmbm-script"]["avotter.js"] = function(){
 			window.localStorage.setItem("avotter.settings."+k, v);
 		});
 	}
-	//
+//
 	function clearAvotterSettings()
 	{
 		Object.keys(avotter.settings).forEach(k=>{
 			window.localStorage.removeItem("avotter.settings."+k);
 		});
 	}
-	//
+//
 	function onAvotterSettingsClose()
 	{
 		let menu = d.getElementById("avtr-settings");
@@ -333,7 +318,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			d.body.removeEventListener("click", onAvotterSettingBodyClick);
 		}
 	}
-	//
+//
 	function isValidSetting(k,v)
 	{
 		if (k === "fetchAfterStayFor" || k === "delayForFitImage"){
@@ -348,7 +333,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return true;
 	}
-	//
+//
 	function onAvotterSettingsApplyAndClose()
 	{
 		let menu = d.getElementById("avtr-settings"), 
@@ -431,7 +416,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				showGoTopBackButton();
 			}
 		}
-		//
+//
 		onAvotterSettingsClose();
 	}
 //
@@ -512,7 +497,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		return /^mobile\./.test(location.hostname);
 	}
-	//
+//
 	function addAvotterButtonToPage()
 	{
 		let e = d.querySelector('.avtr-main-button');
@@ -542,7 +527,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		return addAvotterButtonToPage();
 	}
-	//
+//
 	function avotterButtonAddClass(name)
 	{
 		let b = getAvotterButton();
@@ -571,7 +556,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	//===============================================================
 	// 
 	//===============================================================
@@ -599,7 +584,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	function printMutationsIfDebug(mutations, opt)
 	{
 		if (avotter.debug){
@@ -632,16 +617,16 @@ window["fmbm-script"]["avotter.js"] = function(){
 	//===============================================================
 	//  tweet and twitter system helper koko
 	//===============================================================
-	//
+//
 	let modalSelector = 'div[aria-labelledby="modal-header"]', tweetSelector = 'div[data-testid="tweet"]', trendSelector = 'div[data-testid="trend"]';
-	//
+//
 	function t2str(e, len)
 	{
 		if (e == null)
 			return "null";
 		return e.innerText.replace(/\s+/g," ").substring(0, len != null ? len : undefined);
 	}
-	//
+//
 	function showTweet(e, fShow)
 	{
 		(fShow == null ? true : fShow) ? e.classList.remove("avtr-hide") : e.classList.add("avtr-hide");
@@ -651,22 +636,22 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		e.classList.add("avtr-hide");
 	}
-	//
+//
 	function isTweetHidden(e)
 	{
 		return isHidden(e);
 	}
-	//
+//
 	function isTweetVisible(e)
 	{
 		return isVisible(e);
 	}
-	//
+//
 	function isTweet(e)
 	{
 		return e != null && e.querySelector && e.querySelector(tweetSelector);
 	}
-	//
+//
 	function hasPreviousVisibleTweet(e)
 	{
 		while (e = e.previousElementSibling){
@@ -680,52 +665,52 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		return d.querySelector(modalSelector);
 	}
-	//
+//
 	function loadingContents(e)
 	{
 		if (! e)
 			e = d;
 		return !! e.querySelector('div[aria-label][role="progressbar"] svg > circle');
 	}
-	//
+//
 	function getPrimaryColumn()
 	{
 		return d.querySelector('div[data-testid="primaryColumn"]');
 	}
-	//
+//
 	function getSidebarColumn()
 	{
 		return d.querySelector('div[data-testid="sidebarColumn"]'); 
 	}
-	//
+//
 	function getTweetsContainer()
 	{
 		let pc = getPrimaryColumn();
 		return pc &&  (pc.querySelector('h1[aria-level="1"] + div > div[style*="relative"][style*="min-height"]') || pc.querySelector('h1[aria-level="1"] + div > div:first-child > div:first-child'));
 	}
-	//
+//
 	function getProfileArea()
 	{
 		let e = d.querySelector('a[href$="/photo"]');
 		return  (e && (e = e.parentElement) && (e = e.parentElement) && (e = e.parentElement)) ? e : null;
 	}
-	//
+//
 	function isPinnedTweet(e)
 	{
 		return e != null && e.querySelector('path[d^="M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-."]');
 	}
-	//
+//
 	function isSeparator(e)
 	{
 		return e != null && e.innerText.trim().length === 0;
 	}
-	//
+//
 	function getPinnedTweet()
 	{
 		let e = getTweetsContainer();
 		return (e && (e = e.firstElementChild) && isPinnedTweet(e)) ? e : null;
 	}
-	//
+//
 	function tweetsForEach(callback)
 	{
 		let tweetsContainer = getTweetsContainer();
@@ -736,7 +721,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-		//
+//
 	function printTweets()
 	{
 		tweetsForEach(e=>console.log((isTweetHidden(e) ? "[hidden]" : e.classList.contains("avtr-already-read")?"[Read]":"[Unread]")+" "+t2str(e,50)))
@@ -753,7 +738,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		let a = e.querySelector('a[title][href*="/status/"]');
 		return a ? a.href.substring(a.href.lastIndexOf("/")+1) : "";
 	}
-	//
+//
 	function getPageType()
 	{
 		let type = null;
@@ -765,7 +750,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return type
 	}
-	//
+//
 	//===============================================================
 	//  parse tweet
 	//===============================================================
@@ -808,7 +793,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				rightColumn = tweet.firstElementChild.nextElementSibling;
 				header = rightColumn.firstElementChild;
 				{
-					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e));
+					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e)) && (o.userNameHtml = e.outerHTML);
 					a && (href = a.getAttribute("href")) && (o.screenName = href.substring(1));
 					(time = header.querySelector('a > time')) && (href = time.parentElement.getAttribute("href")) && (r = href.match(/\/(\w+)\/status\/(\d+)$/)) && (o.screenName = r[1], o.tweetId = r[2]);
 					time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
@@ -823,17 +808,18 @@ window["fmbm-script"]["avotter.js"] = function(){
 						}
 						// tweet body
 						o.tweet = fullText(target);
+						o.tweetHtml = target.outerHTML;
 					}
-					else if (e = target.querySelector('div[role="blockquote"]')){
-						o.blockquote  = fullText(e);
+					else if (e = target.querySelector('time')){
+						o.blockquote  = fullText(target);
 					}
-					else if (target.querySelector('a[href$="/photo/1"]')){
+					else if (target.querySelector('div[data-testid="tweetPhoto"')){
 						o.containsPhoto = true;
 						if (e = target.querySelector('a[href$="/media_tags"]')){
 							o.mediaTags = plainText(e);
 						}
 					}
-					else if (target.querySelector('div[data-testid="playButton"]')){
+					else if (target.querySelector('div[data-testid="previewInterstitial"')){
 						video = target;
 						o.containsVideo = true;
 						if (e = target.querySelector('a[href$="/media_tags"]')){
@@ -860,15 +846,15 @@ window["fmbm-script"]["avotter.js"] = function(){
 			return o;
 		}
 	})();
-	//
+//
 	//===============================================================
 	//  moniter tweets
 	//===============================================================
 	let monitorTweet, scanTweets, defaultDelayForFitImage = isMobile() ? "300" : "150", delayForFitImage = defaultDelayForFitImage * 1;
-	//
+//
 	(function(){//fetchAfterStayFor = defaultFetchAfterStayFor * 1000
 		let fitImageClassName = "avtr-fit-image";
-		//
+//
 		function fitImageToArea(tw, restore)
 		{
 			if (restore){
@@ -899,7 +885,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		function isHeading(e)
 		{
 			return e.querySelector('h2[aria-level="2"][role="heading"]') != null;
@@ -945,7 +931,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				notifyInButton(++avotter.hiddenItemCount);
 			}
 		}
-		//
+//
 		function hideOrShow(e, prev, next)
 		{
 			let r = doesNeedToHide(e, prev, next);
@@ -957,7 +943,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			else
 				showTweet(e);
 		}
-		//
+//
 		function indexof(e)
 		{
 			if (e == null)
@@ -969,7 +955,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 			return i;
 		}
-		//
+//
 		function summarizeUserData(user)
 		{
 			return {
@@ -980,7 +966,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				createdAt: user.created_at
 			};
 		}
-		//
+//
 		function dispatchTweetToAddon(e, state)
 		{
 			if (avotter.addonNeedsTweet){
@@ -1002,7 +988,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				});
 			}
 		}
-		//
+//
 		function onInsertBefore(e, e2)
 		{
 			if (this.avotterMoniteringTweet){
@@ -1016,11 +1002,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				// At this point, the tweet object is not yet complete.
 				dispatchTweetToAddon(e, {/*for future extension*/});
 				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
 		}
-		//
+//
 		function onAppendChild(e)
 		{
 			if (this.avotterMoniteringTweet){
@@ -1035,11 +1022,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				// At this point, the tweet object is not yet complete.
 				dispatchTweetToAddon(e, {/*for future extension*/});
 				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
 		}
-		//
+//
 		function onRemoveChild(e)
 		{
 			if (this.avotterMoniteringTweet){
@@ -1047,7 +1035,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					console.log("remove [" + indexof(e) + "] " + t2str(e,40));
 			}
 		}
-		//
+//
 		scanTweets = function(tweetsContainer)
 		{
 			if (! tweetsContainer)
@@ -1061,7 +1049,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		monitorTweet = function(enable){
 			let tweetsContainer = getTweetsContainer();
 			if (tweetsContainer){
@@ -1092,7 +1080,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		};
 	})();
-	//
+//
 	//===============================================================
 	// modal dialog
 	//===============================================================
@@ -1101,25 +1089,25 @@ window["fmbm-script"]["avotter.js"] = function(){
 		let e = elem.querySelector('div[role="button"] > div > svg > g > path[d^="'+path_d+'"]');
 		return e ? e.parentElement.parentElement.parentElement.parentElement : null;
 	}
-	//
+//
 	function getCloseButton(e)
 	{
 		e && (e = getButtonFromPathD(e, "M13.414 12l5.793-5.793c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"));
 		return e;
 	}
-	//
+//
 	function getBackwordButton(e)
 	{
 		e && (e = getButtonFromPathD(e, "M20 11H7.414l4.293-4.293c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"));
 		return e;
 	}
-	//
+//
 	function getForwordButton(e)
 	{
 		e && (e = getButtonFromPathD(e, "M19.707 11.293l-6-6c-.39-.39-1.023-.39-1.414 0s-.39 1.023 0 1.414L16.586"));
 		return e;
 	}
-	//
+//
 	function getButtonFromChild(m, e)
 	{
 		if (m){
@@ -1131,7 +1119,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return null;
 	}
-	//
+//
 	function installModalDialogHandler()
 	{
 		let m = getModal();
@@ -1183,18 +1171,18 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	//===============================================================
 	// moniter search results page
 	//===============================================================
 	let fetchAndMonitorNewTweet, getNewSearchResultCount;
-	//
+//
 	(function(){
 		const MARK_AFTER_DURATION = 4*1000;
 		let monitoring, watchdogTimer, fetchAfterStayFor = defaultFetchAfterStayFor * 1000, 
 			scrollEvent, lastReadTweet, tweetsContainer, 
 			newTweetDetected, newTweetFetched, handleXhrOpen, alreadyRead = {}, intersectionObserver;
-		//
+//
 		function installTweetsMutationObserver()
 		{
 			if (! tweetsContainer.avotterObserver){
@@ -1202,7 +1190,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				log("# tweetsMutationObserver ready");
 			}
 		}
-		//
+//
 		function removeTweetsMutationObserver()
 		{
 			if (tweetsContainer.avotterObserver){
@@ -1211,7 +1199,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				log("tweetsMutationObserver removed");
 			}
 		}
-		//
+//
 		function scrollByEx(dx,dy){
 			scrollBy(dx, dy);
 			if (d.hidden){
@@ -1263,7 +1251,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		function startWatchdog()
 		{
 			log("# watchdog starting");
@@ -1277,7 +1265,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				e.classList.remove("avtr-hide");
 			}
 		}
-		//
+//
 		function stopWatchdog()
 		{
 			log("# watchdog stopping");
@@ -1294,7 +1282,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			if (e)
 				e.classList.add("avtr-hide");
 		}
-		//
+//
 		function markAlreadyReadOrObserveIntersection(e)
 		{
 			let id = tweetIdOf(e);
@@ -1320,7 +1308,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		function tweetsMutationObserver(mutations, observer)
 		{
 			log("# tweetsMutationObserver");
@@ -1329,25 +1317,28 @@ window["fmbm-script"]["avotter.js"] = function(){
 				if (type === "added" && e.classList != null)
 					markAlreadyReadOrObserveIntersection(e);
 			});
-			if (! newTweetDetected){
-				if (lastReadTweet){
-					if (! lastReadTweet.parentElement || hasPreviousVisibleTweet(lastReadTweet)){
-						newTweetDetected = true;
-						newTweetFetched = false;
-						log("#### new tweet detected");
-						lastReadTweet = null;
-						stopWatchdog();
+			// At this point, the tweet object is not yet complete.
+			//setTimeout(function(){
+				if (! newTweetDetected){
+					if (lastReadTweet){
+						if (! lastReadTweet.parentElement || hasPreviousVisibleTweet(lastReadTweet)){
+							newTweetDetected = true;
+							newTweetFetched = false;
+							log("#### new tweet detected");
+							lastReadTweet = null;
+							stopWatchdog();
+						}
 					}
 				}
-			}
-			notifyInTab();
+				notifyInTab();
+			//}, 0);
 		}
-		//
+//
 		function isTarget(url)
 		{
 			return /\/(search\/adaptive|timeline\/(home|list|profile\/\d+))\.json/.test(url);
 		}
-		//
+//
 		function onXhrOpen(method, url)
 		{
 			if (method.toUpperCase() === "GET" && isTarget(url)){
@@ -1375,7 +1366,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				log("# listening event 'load' on "+ url.substring(0,50));
 			}
 		}
-		//
+//
 		function markAlreadyReadAfter(e)
 		{
 			e.avotterAlreadyTimer = setTimeout(function(e){
@@ -1383,7 +1374,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					delete e.avotterAlreadyTimer;
 				}, MARK_AFTER_DURATION, e);
 		}
-		//
+//
 		function onIntersectionChanged(entries, observer)
 		{
 			let marked = 0, markAfter = 0;
@@ -1433,7 +1424,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			if (markAfter > 0)
 				setTimeout(notifyInTab, MARK_AFTER_DURATION + 500);
 		}
-		//
+//
 		function onVisibilityChange()
 		{
 			if (d.hidden){
@@ -1450,7 +1441,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				});
 			}
 		}
-		//
+//
 		function onScroll()
 		{
 			if (d.hidden){
@@ -1494,7 +1485,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		function stopMonitering()
 		{
 			if (! monitoring)
@@ -1528,7 +1519,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			currentPage().monitoring = monitoring = false;
 			log("# fetchAndMonitorNewTweet stopped");
 		}
-		//
+//
 		function startMonitering()
 		{
 			if (monitoring)
@@ -1550,7 +1541,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			let v = avotter.settings.fetchAfterStayFor, n = v * 1;
 			if (v && ! isNaN(n) && n >= 0)
 				fetchAfterStayFor = n * 1000;
-				//
+//
 			watchdogStartAt = 0;
 			tweetsContainerObserverReady = newTweetDetected = newTweetFetched = false;
 			if (! (alreadyRead = currentPage().alreadyRead))
@@ -1575,7 +1566,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			currentPage().monitoring = monitoring = true;
 			onScroll();
 		}
-		//
+//
 		fetchAndMonitorNewTweet = function(enable)
 		{
 			if (typeof  enable !== "boolean")
@@ -1585,7 +1576,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			else
 				stopMonitering();
 		};
-		//
+//
 		getNewSearchResultCount = function()
 		{
 			let count = 0;
@@ -1602,7 +1593,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			return count > 0 ? count : (d.hidden && newTweetFetched ? 1 : 0);
 		};
 	})();
-	//
+//
 	//===============================================================
 	//  moniter xhr for user
 	//===============================================================
@@ -1625,20 +1616,20 @@ window["fmbm-script"]["avotter.js"] = function(){
 	{
 		return (screenName && avotter.users) ? avotter.users[screenName.toLowerCase()] : null;
 	}
-	//
+//
 	function clearUserProfile()
 	{
 		delete avotter.users;
 	}
-	//
+//
 	(function(){
 		let handleXhrOpen;
-		//
+//
 		function isTarget(url)
 		{
 			return /\/(search\/adaptive|timeline\/(home|list|profile\/\d+))\.json/.test(url);
 		}
-		//
+//
 		function onXhrOpen(method, url)
 		{
 			if (method.toUpperCase() === "GET" && isTarget(url)){
@@ -1693,7 +1684,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 	//  moniter non-tweet miscellaneous
 	//===============================================================
 	let monitorNonTweet, scanNonTweet;
-	//
+//
 	(function(){
 		function hidePromotionTrendIn(target)
 		{
@@ -1712,12 +1703,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 				}
 			}
 		}
-		//
+//
 		scanNonTweet = function(target){
 			if (avotter.settings.hidePromotion)
 				hidePromotionTrendIn(target);
 		}
-		//
+//
 		monitorNonTweet = function(target, enable){
 			if (target){
 				let dataTestId = target.getAttribute("data-testid");
@@ -1769,12 +1760,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return 
 	}
-	//
+//
 	function page2str(page)
 	{
 		return obj2str(page, 2);
 	}
-	//
+//
 	function printPageStack()
 	{
 		for (let i = 0 ; i < avotter.page.length ; i++){
@@ -1788,17 +1779,17 @@ window["fmbm-script"]["avotter.js"] = function(){
 		if (avotter.debug)
 			printPageStack();
 	}
-	//
+//
 	function currentPage()
 	{
 		return avotter.page[avotter.pageIndex];
 	}
-	//
+//
 	function previousPage()
 	{
 		return avotter.pageIndex > 0 ? avotter.page[avotter.pageIndex - 1] : {state:{}};
 	}
-	//
+//
 	function printElementTree(e, depth)
 	{
 		if (depth == null)
@@ -1808,12 +1799,12 @@ window["fmbm-script"]["avotter.js"] = function(){
 			printElementTree(e.children[i], depth + 1);
 		}
 	}
-	//
+//
 	function isUrlOfCompose(url)
 	{
 		return url && /^\/compose\//.test(url);
 	}
-	//
+//
 	function onReactRootChanged(mutations, observer)
 	{
 		let page = currentPage();
@@ -1873,7 +1864,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	function moniterReactRoot(enable)
 	{
 		if (enable){
@@ -1896,7 +1887,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	//===============================================================
 	//  Moniter page transition
 	//===============================================================
@@ -1911,7 +1902,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			return "null";
 		}
 	}
-	//
+//
 	let navItem = {
 		"/home": true,
 		"/explore": true,
@@ -1925,13 +1916,13 @@ window["fmbm-script"]["avotter.js"] = function(){
 		"/(screen name)/settings": !0
 		*/
 	};
-	//
+//
 	function getScreenName()
 	{
 		let a = d.querySelector('nav > a[href$="/lists"]');
 		return a ? a.getAttribute("href").split("/")[1] : "";
 	}
-	//
+//
 	function isNavItem(url)
 	{
 		if (navItem[url])
@@ -1943,23 +1934,23 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return false;
 	}
-	//
+//
 	function isTrendPage(url)
 	{
 		return /^\/(explore|i\/trends)$/.test(url);
 	}
-	//
+//
 	function isNonModalUrl(url)
 	{
 		return /^\/\w+\/status\/\d+$/.test(url);
 	}
-	//
+//
 	function needsMonitoringTweet()
 	{
 		let page = currentPage();
 		return ! page.modal && page.type === "tweet" && (avotter.settings.hidePromotion || avotter.settings.hideRecommendedUser || avotter.settings.fitImageToArea || avotter.addonNeedsTweet);
 	}
-	//
+//
 	function onTransitionComplete()
 	{
 		let page = currentPage();
@@ -2001,7 +1992,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			showGoTopBackButton();
 		}
 	}
-	//
+//
 	function onPageTrasition(method, state, title, url)
 	{
 		log("## " + method + " state:"+state2str(state)+" title:"+title+" url:"+url);
@@ -2116,37 +2107,37 @@ window["fmbm-script"]["avotter.js"] = function(){
 		moniterReactRoot(true);
 		avotterButtonRemoveClass("avtr-transition-complete");
 	}
-	//
+//
 	function onHistoryPushState(state, title, url)
 	{
 		onPageTrasition("pushState", state, title, url);
 	}
-	//
+//
 	function onHistoryReplaceState(state, title, url)
 	{
 		onPageTrasition("replaceState", state, title, url);
 	}
-	//
+//
 	function onWindowPopstate()
 	{
 		//if (! event.state) return;
 		let url = location.pathname+location.search;
 		onPageTrasition("popstate", event.state, null, url);
 	}
-	//
+//
 	//===============================================================
 	// display unread tweets/nitifications/dm count in tab
 	//===============================================================
 	let installNotificationWatcher, notifyInTab, clearNotifyInTab, initEmojiForNotification;
-	//
+//
 	(function(){
 		clearNotifyInTab= function()
 		{
 			d.title = avotter.pageTitle;
 		}
-		//
+//
 		let emojiForNotification;
-		//
+//
 		initEmojiForNotification = function()
 		{
 			emojiForNotification = [];
@@ -2156,13 +2147,13 @@ window["fmbm-script"]["avotter.js"] = function(){
 				emojiForNotification.push(emoji ? emoji : defaultEmojiForNotification[i]);
 			}
 		}
-		//
+//
 		notifyInTab = function()
 		{
 			if (! emojiForNotification)
 				initEmojiForNotification();
 			let emoji = emojiForNotification;
-			//
+//
 			let e, s = ""
 			let nNewSearchResults = getNewSearchResultCount();
 			e = d.querySelector('.avtr-eye-new-arrivals');
@@ -2179,7 +2170,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					e.classList.add('avtr-hide');
 				}
 			}
-			//
+//
 			if (avotter.settings.showArrivalOfNewTweetsInTab){
 				e = d.querySelector('a[data-testid="AppTabBar_Home_Link"] svg + div');
 				let newTweetCount = e != null ? "1" : "";
@@ -2199,7 +2190,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 				setTimeout(oneMoreTime, 1000);
 			}
 		}
-		//
+//
 		function isTargetedIconMutation(mutations)
 		{
 			for (let i = 0 ; i < mutations.length ; i++){
@@ -2224,7 +2215,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 			return false;
 		}
-		//
+//
 		function onHomeIconChanged(mutations, observer)
 		{
 			if (avotter.settings.showArrivalOfNewTweetsInTab){
@@ -2234,7 +2225,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					notifyInTab();
 			}
 		}
-		//
+//
 		function onNotificationsIconChanged(mutations, observer)
 		{
 			if (avotter.settings.showArrivalOfNewTweetsInTab){
@@ -2244,7 +2235,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					notifyInTab();
 			}
 		}
-		//
+//
 		function onDirectMessageIconChanged(mutations, observer)
 		{
 			if (avotter.settings.showArrivalOfNewTweetsInTab){
@@ -2254,7 +2245,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 					notifyInTab();
 			}
 		}
-		//
+//
 		installNotificationWatcher = function(){
 			let error;
 			[	{name: "Home", callback: onHomeIconChanged}, 
@@ -2307,7 +2298,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		if (e)
 			e.remove();
 	}
-		//
+//
 	//===============================================================
 	//  home button
 	//===============================================================
@@ -2338,30 +2329,30 @@ window["fmbm-script"]["avotter.js"] = function(){
 			}
 		}
 	}
-	//
+//
 	function removeHomeButtonFromPage()
 	{
 		let e = d.querySelector('.avtr-home-button');
 		if (e)
 			e.remove();
 	}
-	//
+//
 	//===============================================================
 	//  go top button
 	//===============================================================
 	var goTopTimer;
-	//
+//
 	function getTwitterBackButton()
 	{
 		let e = d.querySelector('div[data-testid="primaryColumn"] div[role="button"] > div > svg > g > path[d^="M20 11H7.414l4.293-4.293c.39-.39.39-1.023 0-1.414s-1.023-.39-1.414"]');
 		return e ? e.parentElement.parentElement.parentElement.parentElement : null;
 	}
-	//
+//
 	function needsToShowTopButton()
 	{
 		return avotter.settings.addGoTopButton && (window.pageYOffset > window.innerHeight * 0.5);
 	}
-	//
+//
 	function canShowBackButton()
 	{
 		return avotter.settings.addGoTopButton && ! isMobile() && avotter.settings.goTopButtonAtMousePosition && getTwitterBackButton();
@@ -2430,13 +2421,13 @@ window["fmbm-script"]["avotter.js"] = function(){
 			goTopTimer = setTimeout(function(){goTopTimer=null}, 200);
 		}
 	}
-	//
+//
 	function onMouseMoveForGoTopButton()
 	{
 		avotter.mouseLeft = event.pageX - window.pageXOffset;
 		avotter.mouseTop = event.pageY - window.pageYOffset;
 	}
-	//
+//
 	//===============================================================
 	//  
 	//===============================================================
@@ -2452,7 +2443,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			});
 		}
 	}
-	//
+//
 	//===============================================================
 	//  Initialize App
 	//===============================================================
@@ -2517,7 +2508,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 			printTweets: printTweets,
 			printPageStack: printPageStack
 		};
-		//
+//
 		appendStylesheet(
 			'.avtr-hide{display:none}'
 			+'.avtr-main-button{position:relative;cursor:pointer;padding:0.2rem 0.3rem 0 0.3rem;border:1px solid;border-radius:50%;background-color:gold;'+(!isMobile()?'margin-top:0.5rem':'')+'}.avtr-main-button.avtr-mobile{height:50%;margin:3% 4%}'
@@ -2538,15 +2529,14 @@ window["fmbm-script"]["avotter.js"] = function(){
 		addAvotterButtonToPage();
 		notifyInButton(avotter.hiddenItemCount);
 //
-	//
 		// moniter transition
 		addObjectMethodMonitor(window.history, "pushState", onHistoryPushState);
 		addObjectMethodMonitor(window.history, "replaceState", onHistoryReplaceState);
 		window.addEventListener("popstate", onWindowPopstate);
-		//
+//
 		// prepare to monitor react-root
 		avotter.reactRootObserver = new MutationObserver(onReactRootChanged);
-		//
+//
 		avotter.pageIndex = avotter.page.push({
 			type: getPageType(),
 			state: window.history.state ? window.history.state : {key:"abcdefgh"},
@@ -2556,30 +2546,30 @@ window["fmbm-script"]["avotter.js"] = function(){
 		let page = currentPage();
 		if (getModal())
 			page.modal = true;
-		//
+//
 		// moniter nav icons to detect notification
 		installNotificationWatcher();
-		//
+//
 		//
 		hookVisibilityState();
-		//
+//
 		if (avotter.settings.addGoTopButton){
 			window.addEventListener("scroll", onScrollForGoTopButton);
 			if (! isMobile() && avotter.settings.goTopButtonAtMousePosition)
 				d.addEventListener("mousemove", onMouseMoveForGoTopButton);
 		}
-		//
+//
 		//avotter.debug = true;
-		//
+//
 		if (page.modal || page.type)
 			onTransitionComplete();
 	}
-	//
+//
 	if (!/^(mobile\.)?twitter\.com$/i.test(location.hostname)){
 		alert(translate("this site is not twitter"));
 		return;
 	}
-		//
+//
 	if (window["avotter"]){
 		if (avotter.fatalError){
 			alert(avotter.fatalError+"\n"+ translate("ExitApp"));
@@ -2595,7 +2585,7 @@ window["fmbm-script"]["avotter.js"] = function(){
 		}
 		return;
 	}
-	//
+//
 	let reactRoot = d.querySelector('#react-root');
 	if (! reactRoot){
 		alert("#react-root " + translate("NotFound")+"\n"+ translate("ExitApp"));
@@ -2615,7 +2605,4 @@ window["fmbm-script"]["avotter.js"] = function(){
 		init();
 	}
 })();
-// #### end body
-}})();
 
-//
