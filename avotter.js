@@ -1,13 +1,13 @@
 /*
 {
 	name: Avotter
-	version: 0.4.8
+	version: 0.4.9
 	author: avotoko
 	description: Improve the usability of twitter.com (new design of 2019)
 }
 */
 (function(){
-	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.8 nightly';
+	let d = document, AVOTTER_VERSION_STRING = 'v.0.4.9';
 
 	//===============================================================
 	// Helpers
@@ -800,7 +800,7 @@
 				rightColumn = tweet.firstElementChild.nextElementSibling;
 				header = rightColumn.firstElementChild;
 				{
-					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e));
+					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e)) && (o.userNameHtml = e.outerHTML);
 					a && (href = a.getAttribute("href")) && (o.screenName = href.substring(1));
 					(time = header.querySelector('a > time')) && (href = time.parentElement.getAttribute("href")) && (r = href.match(/\/(\w+)\/status\/(\d+)$/)) && (o.screenName = r[1], o.tweetId = r[2]);
 					time && (o.time = plainText(time)) && (s = time.getAttribute("datetime")) && (o.datetime = s);
@@ -815,17 +815,18 @@
 						}
 						// tweet body
 						o.tweet = fullText(target);
+						o.tweetHtml = target.outerHTML;
 					}
-					else if (e = target.querySelector('div[role="blockquote"]')){
-						o.blockquote  = fullText(e);
+					else if (e = target.querySelector('time')){
+						o.blockquote  = fullText(target);
 					}
-					else if (target.querySelector('a[href$="/photo/1"]')){
+					else if (target.querySelector('div[data-testid="tweetPhoto"')){
 						o.containsPhoto = true;
 						if (e = target.querySelector('a[href$="/media_tags"]')){
 							o.mediaTags = plainText(e);
 						}
 					}
-					else if (target.querySelector('div[data-testid="playButton"]')){
+					else if (target.querySelector('div[data-testid="previewInterstitial"')){
 						video = target;
 						o.containsVideo = true;
 						if (e = target.querySelector('a[href$="/media_tags"]')){
@@ -1008,6 +1009,7 @@
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				// At this point, the tweet object is not yet complete.
 				dispatchTweetToAddon(e, {/*for future extension*/});
 				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
@@ -1027,6 +1029,7 @@
 				}
 				if (avotter.settings.fitImageToArea)
 					setTimeout(fitImageToArea, delayForFitImage, e);
+				// At this point, the tweet object is not yet complete.
 				dispatchTweetToAddon(e, {/*for future extension*/});
 				//setTimeout(dispatchTweetToAddon, 0, e, {/*for future extension*/});
 			}
@@ -1321,18 +1324,21 @@
 				if (type === "added" && e.classList != null)
 					markAlreadyReadOrObserveIntersection(e);
 			});
-			if (! newTweetDetected){
-				if (lastReadTweet){
-					if (! lastReadTweet.parentElement || hasPreviousVisibleTweet(lastReadTweet)){
-						newTweetDetected = true;
-						newTweetFetched = false;
-						log("#### new tweet detected");
-						lastReadTweet = null;
-						stopWatchdog();
+			// At this point, the tweet object is not yet complete.
+			//setTimeout(function(){
+				if (! newTweetDetected){
+					if (lastReadTweet){
+						if (! lastReadTweet.parentElement || hasPreviousVisibleTweet(lastReadTweet)){
+							newTweetDetected = true;
+							newTweetFetched = false;
+							log("#### new tweet detected");
+							lastReadTweet = null;
+							stopWatchdog();
+						}
 					}
 				}
-			}
-			notifyInTab();
+				notifyInTab();
+			//}, 0);
 		}
 		
 		function isTarget(url)
