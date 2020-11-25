@@ -1179,7 +1179,7 @@
 		if (m){
 			setTimeout(function(){
 				m.querySelectorAll('img[src*="/media/"]').forEach(img=>{
-					if (! img.getElementsByTagName("a")){
+					if (img.getElementsByTagName("a").length === 0){
 						let a = document.createElement("a");
 						a.href = "https://www.google.com/searchbyimage?image_url=" 
 							+ decodeURIComponent(img.src);
