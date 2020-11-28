@@ -1190,7 +1190,7 @@
 						img.parentElement.appendChild(a);
 					}
 				});
-			}, 100);
+			}, 400);
 		}
 	}
 	
@@ -2022,11 +2022,25 @@
 						a.href = "https://twitter.com/search?q=from%3A" + name + "%20OR%20to%3A" + name
 									+ "'&f=live";
 						a.target = "_blank";
-						a.textContent = "from OR to";
+						a.textContent = "from/to";
 						a.className = e.className + " avtr-from-to" ;
 						div = document.createElement("div");
 						div.appendChild(a);
 						e.parentElement.parentElement.insertBefore(div, e.parentElement.nextSibling);
+						if (e = document.querySelector('a[href="/' + name + '/photo"]')){
+							let img = e.querySelector('img');
+							if (img){
+								a = document.createElement("a");
+								a.href = img.src.replace("_200x200", "");
+								a.target = "_blank";
+								a.textContent = "プロフ画";
+								a.classList.add("avtr-prof-ga");
+								div = document.createElement("div");
+								div.appendChild(a);
+								div.style.marginLeft = "-200px"
+								e.parentElement.insertBefore(div, e.nextSibling);
+							}
+						}
 					}
 				}
 			}
