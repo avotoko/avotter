@@ -2037,7 +2037,9 @@
 								a.classList.add("avtr-prof-ga");
 								div = document.createElement("div");
 								div.appendChild(a);
-								div.style.marginLeft = "-200px"
+								if (! isMobile()){
+									div.style.marginLeft = "-200px"
+								}
 								e.parentElement.insertBefore(div, e.nextSibling);
 							}
 						}
