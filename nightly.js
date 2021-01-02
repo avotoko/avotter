@@ -2020,7 +2020,7 @@
 						let name = e.href.match(/\/(\w+)\//)[1],
 							a = document.createElement("a");
 						a.href = "https://twitter.com/search?q=from%3A" + name + "%20OR%20to%3A" + name
-									+ "'&f=live";
+									+ "&f=live";
 						a.target = "_blank";
 						a.textContent = "from/to";
 						a.className = e.className + " avtr-from-to" ;
