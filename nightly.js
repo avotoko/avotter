@@ -624,7 +624,7 @@
 	//  tweet and twitter system helper koko
 	//===============================================================
 	
-	let modalSelector = 'div[aria-labelledby="modal-header"]', tweetSelector = 'div[data-testid="tweet"]', trendSelector = 'div[data-testid="trend"]';
+	let modalSelector = 'div[aria-labelledby="modal-header"]', tweetSelector = 'article[data-testid="tweet"]', trendSelector = 'div[data-testid="trend"]';
 	
 	function t2str(e, len)
 	{
@@ -791,12 +791,16 @@
 		parseTweet = function(tw)
 		{
 			'use strict';
-			let o = {}, s, e, r, tweet, 	rightColumn, target, header, body, mention, text, media, video, quoted, footer, tail, time, href,  a;
-			if (tweet = tw.querySelector('div[data-testid="tweet"]')){
-				let pre = tweet.previousElementSibling;
-				if (pre.querySelector('svg > g > path[d^="M23.615 15.477c-"]'))
+			let o = {}, s, e, r, tweet, wrapper, social, inner, leftColumn, rightColumn, target, header, body, mention, text, media, video, quoted, footer, tail, time, href,  a;
+			if (tweet = tw.querySelector('article[data-testid="tweet"]')){
+				wrapper = tweet.firstElementChild.firstElementChild.firstElementChild;
+				social = wrapper.firstElementChild;
+				if (social.querySelector('svg > g > path[d^="M23.615 15.477c-"]')){
 					o.retweet = true;
-				rightColumn = tweet.firstElementChild.nextElementSibling;
+				}
+				inner = social.nextElementSibling;
+				leftColumn = inner.firstElementChild;
+				rightColumn = leftColumn.nextElementSibling;
 				header = rightColumn.firstElementChild;
 				{
 					(a = header.querySelector('a')) && (e = a.querySelector('span')) && (o.userName = fullText(e)) && (o.userNameHtml = e.outerHTML);
@@ -841,7 +845,7 @@
 					else if (target.querySelector('svg > g > path[d^="M11.96 14.945c-.067"]')){
 						o.quoted  = plainText(target);
 					}
-					else if (target.getAttribute("role") === "group" && target.querySelector('div[data-testid="reply"]')){
+					else if (target.querySelector('div[data-testid="reply"]')){
 						["reply", "retweet", "like"].forEach(id=>{
 							(e = target.querySelector('div[data-testid="'+id+'"]')) && (o[id+"Count"] = e.innerText);
 						});
